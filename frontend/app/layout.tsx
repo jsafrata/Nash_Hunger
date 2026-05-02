@@ -2,8 +2,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Scarcity Exchange",
-  description: "A 4-player real-time food trading survival game.",
+  title: "Nash Hunger",
+  description:
+    "A 4-player real-time market survival game. Trade or starve.",
 };
 
 export default function RootLayout({

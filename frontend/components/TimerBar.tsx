@@ -1,6 +1,7 @@
 "use client";
 
 import type { PublicGameState } from "../lib/types";
+import { Logo } from "./Logo";
 
 function fmtTime(s: number): string {
   const m = Math.floor(s / 60);
@@ -37,6 +38,13 @@ export function TimerBar({
   return (
     <div className="card px-5 py-3">
       <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <Logo size={28} />
+          <span className="font-bold text-accent text-base tracking-tight">
+            Nash Hunger
+          </span>
+        </div>
+
         <div className="flex items-baseline gap-2">
           <span className="section-title">Room</span>
           <span className="font-bold text-accent text-lg mono">{roomCode}</span>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Outer diamond outline (gold) -->
+  <path d="M 50 6 L 94 50 L 50 94 L 6 50 Z"
+        fill="none" stroke="#f5b914" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Top triangle (bid - green) -->
+  <path d="M 50 18 L 82 50 L 18 50 Z"
+        fill="#34d399" opacity="0.9"/>
+  <!-- Bottom triangle (ask - red) -->
+  <path d="M 50 82 L 18 50 L 82 50 Z"
+        fill="#f87171" opacity="0.9"/>
+  <!-- Center spread line -->
+  <line x1="22" y1="50" x2="78" y2="50" stroke="#0a0c11" stroke-width="2"/>
+</svg>

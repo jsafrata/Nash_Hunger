@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBackendUrl, getSocket, saveSession } from "../lib/socket";
+import { Logo } from "../components/Logo";
 
 export default function HomePage() {
   const router = useRouter();
@@ -101,12 +102,13 @@ export default function HomePage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="text-3xl font-bold text-accent mb-1">
-            Scarcity Exchange
+        <div className="flex flex-col items-center text-center mb-6">
+          <Logo size={64} />
+          <div className="text-3xl font-bold text-accent mt-3 mb-1 tracking-tight">
+            Nash Hunger
           </div>
           <div className="text-sm text-muted">
-            A 4-player real-time food trading survival game.
+            A 4-player real-time market survival game. Trade or starve.
           </div>
         </div>
 
