@@ -1,7 +1,12 @@
 "use client";
 
 import type { FoodType, PublicOrderBook } from "../lib/types";
-import { FOOD_DISPLAY_NAMES, FOOD_TYPES, FOOD_COLORS } from "../lib/types";
+import {
+  FOOD_DISPLAY_NAMES,
+  FOOD_TYPES,
+  FOOD_COLORS,
+  FOOD_HOTKEYS,
+} from "../lib/types";
 
 const SIDE_ROWS = 4;
 const ROW_HEIGHT_PX = 18;
@@ -55,6 +60,9 @@ export function OrderBookView({
                 style={{ color: active ? FOOD_COLORS[f] : undefined }}
               >
                 {FOOD_DISPLAY_NAMES[f]}
+              </span>
+              <span className="text-[10px] text-muted uppercase mono">
+                [{FOOD_HOTKEYS[f]}]
               </span>
               <span className="ml-auto text-[10px] text-muted mono tabular">
                 {last !== null && last !== undefined ? `$${last}` : "—"}

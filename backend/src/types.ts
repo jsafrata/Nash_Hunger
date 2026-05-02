@@ -3,10 +3,10 @@ export type FoodType = "A" | "B" | "C" | "D";
 export const FOOD_TYPES: FoodType[] = ["A", "B", "C", "D"];
 
 export const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
-  A: "Wheat",
-  B: "Fish",
-  C: "Meat",
-  D: "Fruit",
+  A: "Ube",
+  B: "Iceberg",
+  C: "Oats",
+  D: "Pork",
 };
 
 export type Inventory = Record<FoodType, number>;

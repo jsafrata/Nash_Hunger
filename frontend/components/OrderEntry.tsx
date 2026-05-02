@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import type { FoodType, OrderSide, PrivatePlayerState } from "../lib/types";
-import { FOOD_DISPLAY_NAMES } from "../lib/types";
+import { FOOD_DISPLAY_NAMES, HOTKEY_TO_FOOD } from "../lib/types";
 
 export function OrderEntry({
   socket,
   roomCode,
   playerId,
   selectedFood,
+  setSelectedFood,
   priv,
   disabled,
 }: {
@@ -54,7 +55,14 @@ export function OrderEntry({
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      const inNumberInput =
+        tag === "INPUT" && (target as HTMLInputElement).type === "number";
+      const inTextInput =
+        (tag === "INPUT" && !inNumberInput) ||
+        tag === "TEXTAREA" ||
+        target?.isContentEditable;
+      // Always allow shortcuts; in text inputs we don't intercept (let user type names etc.)
+      if (inTextInput) return;
       const key = e.key.toLowerCase();
       if (key === "b" || key === "s") {
         e.preventDefault();
@@ -65,11 +73,14 @@ export function OrderEntry({
           qtyRef.current?.focus();
           qtyRef.current?.select();
         });
+      } else if (HOTKEY_TO_FOOD[key]) {
+        e.preventDefault();
+        setSelectedFood(HOTKEY_TO_FOOD[key]);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [setSelectedFood]);
 
   const submit = () => {
     if (!socket) return;
@@ -135,8 +146,8 @@ export function OrderEntry({
           )}
         </div>
         <div className="text-[11px] text-muted">
-          <span className="text-accent">b</span>/
-          <span className="text-accent">s</span> · qty · ⏎ · price · ⏎
+          <span className="text-accent">u/i/o/p</span> · {" "}
+          <span className="text-accent">b/s</span> · qty · ⏎ · price · ⏎
         </div>
       </div>
 

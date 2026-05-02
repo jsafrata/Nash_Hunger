@@ -3,10 +3,24 @@ export type FoodType = "A" | "B" | "C" | "D";
 export const FOOD_TYPES: FoodType[] = ["A", "B", "C", "D"];
 
 export const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
-  A: "Wheat",
-  B: "Fish",
-  C: "Meat",
-  D: "Fruit",
+  A: "Ube",
+  B: "Iceberg",
+  C: "Oats",
+  D: "Pork",
+};
+
+export const FOOD_HOTKEYS: Record<FoodType, string> = {
+  A: "u",
+  B: "i",
+  C: "o",
+  D: "p",
+};
+
+export const HOTKEY_TO_FOOD: Record<string, FoodType> = {
+  u: "A",
+  i: "B",
+  o: "C",
+  p: "D",
 };
 
 export const FOOD_COLORS: Record<FoodType, string> = {
