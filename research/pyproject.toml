@@ -1,0 +1,18 @@
+[project]
+name = "nash-hunger-research"
+version = "0.1.0"
+description = "Pure-Python simulator + baseline agents for Nash Hunger research."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = ["-q"]

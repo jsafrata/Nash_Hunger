@@ -73,6 +73,11 @@ export function OrderEntry({
           qtyRef.current?.focus();
           qtyRef.current?.select();
         });
+      } else if (key === "c") {
+        e.preventDefault();
+        if (socket) {
+          socket.emit("cancel_all_orders", { roomCode, playerId });
+        }
       } else if (HOTKEY_TO_FOOD[key]) {
         e.preventDefault();
         setSelectedFood(HOTKEY_TO_FOOD[key]);
@@ -80,7 +85,7 @@ export function OrderEntry({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [setSelectedFood]);
+  }, [setSelectedFood, socket, roomCode, playerId]);
 
   const submit = () => {
     if (!socket) return;
@@ -147,7 +152,8 @@ export function OrderEntry({
         </div>
         <div className="text-[11px] text-muted">
           <span className="text-accent">u/i/o/p</span> · {" "}
-          <span className="text-accent">b/s</span> · qty · ⏎ · price · ⏎
+          <span className="text-accent">b/s</span> · qty · ⏎ · price · ⏎ · {" "}
+          <span className="text-accent">c</span> cancel-all
         </div>
       </div>
 
