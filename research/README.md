@@ -19,7 +19,7 @@ Python ≥ 3.11.
 ## Quickstart
 
 ```bash
-# A single game with 4 specified agents
+# A single game with 4 specified agents (final summary as JSON)
 python run_game.py --seed 42 --agents greedy,buffer,random,noop
 
 # With per-game JSON log
@@ -27,7 +27,24 @@ python run_game.py --seed 42 --agents greedy,greedy,greedy,greedy --log logs/
 
 # Batch run, prints per-slot stats
 python run_batch.py --agents greedy buffer random noop --num_games 1000
+
+# Watch a game tick-by-tick in your terminal (colored, scrubable speed)
+python watch_game.py --seed 42 --agents greedy,buffer,random,noop --delay 0.3
+python watch_game.py --seed 7  --agents greedy,greedy,greedy,greedy --delay 0.05
+python watch_game.py --seed 0  --agents greedy,greedy,greedy,greedy --no-clear  # stream every frame
 ```
+
+### Verifying the simulator is correct
+
+There are three layers of verification, in increasing strength:
+
+| Layer | What it shows | Run |
+|---|---|---|
+| Unit tests (~50) | each rule in isolation behaves as written | `pytest -q tests/test_setup.py tests/test_market.py tests/test_tick.py tests/test_winner.py tests/test_legal_actions.py` |
+| Determinism + invariants | money is conserved, food mass balances, same seed → same outcome | `pytest tests/test_determinism.py` |
+| **Parity vs the canonical TypeScript implementation** | **byte-equivalent trades, deaths, final state under identical scenarios** | `pytest tests/test_parity.py` |
+
+The parity test is the strongest — if it passes, the Python sim and the live game are provably the same simulator. You can also **see** correctness by watching: `python watch_game.py --seed 42 ...` shows production, consumption, trades, deaths, and the order book in real time, with the same rules the live game uses.
 
 ## API (per [`food_trading_environment_requirements.md`](../food_trading_environment_requirements.md) §4)
 
@@ -73,6 +90,30 @@ The env exposes the standard 6 methods listed in the requirements doc:
 Each player's observation includes their own cash/inventory/reservations/produced food/required foods/starvation timers/open orders, plus the public order book depth, recent trades, and other players' alive/dead/produces (but **never** other players' inventory or cash).
 
 The observation is currently a dict (easy to inspect). For Gymnasium/PettingZoo wrapping in v2, it'll be flattened into a fixed-shape numpy array.
+
+## Baseline agents
+
+All four are deterministic given a seed. See [`agents/`](agents/) for source.
+
+| Agent | Philosophy | Key rule |
+|---|---|---|
+| **NoopAgent** | Inert. | Always `noop`. Floor: confirms doing nothing leads to starvation. |
+| **RandomAgent** | Uniform exploration. | Pick any legal action with equal probability. Tests whether random is enough (it isn't). |
+| **GreedyAgent** | Reactive panic-driven survivor. | Per required food, tier by survival ticks: ≤2 → **panic** (5 units @$10 max-sweep); ≤6 → **hurry** (3 units @best_ask+1, lifts the best ask); ≤15 → **stockpile** (2 units passive @best_bid+1, capped to $4); >15 → no action. Sells own surplus (≥5) at best_bid+1. |
+| **BufferAgent** | Proactive stockpiler. | Same panic-sweep at <8 ticks (4 units @$10), then **build** (2 units passive @best_bid+1, capped to $4) up to 25-tick target, then no buy. Sells own surplus (≥6) at best_bid+1. |
+
+The two heuristic agents differ in **when they act**, not how:
+
+- Greedy doesn't buy until survival drops to ~15 ticks. It runs thin by design.
+- Buffer keeps buying until survival hits 25 ticks. It builds reserves proactively.
+
+In a head-to-head batch the difference is dramatic: **Greedy beats Buffer ~72% to ~7%** in the canonical config, because Buffer's passive $4 bids often don't fill (no one's selling that low) yet they reserve Buffer's cash, so when panic comes Buffer can't afford the max-sweep. Greedy hoards cash and spends it efficiently. This is the "looks fine in theory, fails in practice" failure mode that motivates the RL work.
+
+Run a head-to-head yourself:
+
+```bash
+python run_batch.py --agents greedy buffer greedy buffer --num_games 1000
+```
 
 ## Layout
 
