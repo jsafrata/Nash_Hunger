@@ -1,9 +1,14 @@
 "use client";
 
 import type { Socket } from "socket.io-client";
-import type { PublicPlayerState } from "../lib/types";
+import type { BotDifficulty, PublicPlayerState } from "../lib/types";
 
 const FULL_COUNT = 4;
+const DIFFICULTIES: { value: BotDifficulty; label: string; hint: string }[] = [
+  { value: "easy", label: "Easy", hint: "slow bots (3.5–5.5s)" },
+  { value: "medium", label: "Medium", hint: "balanced (1.5–2.5s)" },
+  { value: "hard", label: "Hard", hint: "fast bots (0.5–1.0s)" },
+];
 
 export function Lobby({
   socket,
@@ -11,17 +16,27 @@ export function Lobby({
   playerId,
   isHost,
   players,
+  botDifficulty,
+  consumptionIntervalSeconds,
 }: {
   socket: Socket | null;
   roomCode: string;
   playerId: string;
   isHost: boolean;
   players: PublicPlayerState[];
+  botDifficulty: BotDifficulty;
+  consumptionIntervalSeconds: number;
 }) {
   const start = () => socket?.emit("start_game", { roomCode, playerId });
   const addBot = () => socket?.emit("add_bot", { roomCode, playerId });
   const removeBot = (botId: string) =>
     socket?.emit("remove_bot", { roomCode, playerId, botId });
+  const setDifficulty = (difficulty: BotDifficulty) =>
+    socket?.emit("set_bot_difficulty", {
+      roomCode,
+      playerId,
+      difficulty,
+    });
   const fillWithBots = () => {
     const empty = FULL_COUNT - players.length;
     for (let i = 0; i < empty; i++) {
@@ -31,6 +46,7 @@ export function Lobby({
 
   const canStart = players.length === FULL_COUNT && isHost;
   const canAddBot = isHost && players.length < FULL_COUNT;
+  const hasBots = players.some((p) => p.isBot);
   const inviteUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/game/${roomCode}`
@@ -119,6 +135,30 @@ export function Lobby({
         })}
       </div>
 
+      <div className={`mb-5 ${hasBots ? "" : "opacity-60"}`}>
+        <div className="section-title mb-2">Bot difficulty</div>
+        <div className="grid grid-cols-3 gap-2">
+          {DIFFICULTIES.map((d) => {
+            const active = d.value === botDifficulty;
+            return (
+              <button
+                key={d.value}
+                onClick={() => setDifficulty(d.value)}
+                disabled={!isHost}
+                className={`px-3 py-2 rounded-md border text-sm transition ${
+                  active
+                    ? "bg-accent/20 border-accent text-accent"
+                    : "border-line text-muted hover:bg-elevated/40"
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                <div className="font-semibold">{d.label}</div>
+                <div className="text-[10px] opacity-70">{d.hint}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <button
         onClick={start}
         disabled={!canStart}
@@ -133,9 +173,9 @@ export function Lobby({
 
       <div className="mt-5 text-xs text-muted leading-relaxed">
         Each player produces one food (+2/s) and must eat the other three
-        (-1/s each). Trade through the order book. The surviving player with
-        the most cash after 3 minutes wins. Reserved food in your asks cannot
-        be eaten.
+        (−1 every {consumptionIntervalSeconds}s). Trade through the order book.
+        The surviving player with the most cash after 3 minutes wins. Reserved
+        food in your asks cannot be eaten.
       </div>
     </div>
   );

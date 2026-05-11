@@ -100,6 +100,8 @@ export function buildPublicGameState(room: GameRoom): PublicGameState {
     players: buildPublicPlayers(room),
     recentTrades: buildPublicTrades(room),
     publicEventLog: room.eventLog.slice(-GAME_CONFIG.EVENT_LOG_LIMIT),
+    botDifficulty: room.botDifficulty,
+    consumptionIntervalSeconds: GAME_CONFIG.CONSUMPTION_INTERVAL_SECONDS,
   };
 }
 

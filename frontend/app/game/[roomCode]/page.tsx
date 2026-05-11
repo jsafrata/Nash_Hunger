@@ -8,8 +8,8 @@ import type { FoodType } from "../../../lib/types";
 import { TimerBar } from "../../../components/TimerBar";
 import { PlayerPanel } from "../../../components/PlayerPanel";
 import { ResourcesPanel } from "../../../components/ResourcesPanel";
-import { OrderEntry } from "../../../components/OrderEntry";
-import { OrderBookView } from "../../../components/OrderBookView";
+import { OrderEntryGrid } from "../../../components/OrderEntryGrid";
+import { OrderBookGrid } from "../../../components/OrderBookGrid";
 import { OwnOrders } from "../../../components/OwnOrders";
 import { RecentTrades } from "../../../components/RecentTrades";
 import { EventLog } from "../../../components/EventLog";
@@ -132,6 +132,10 @@ export default function GamePage() {
             playerId={game.playerId ?? ""}
             isHost={game.isHost}
             players={game.publicState?.players ?? []}
+            botDifficulty={game.publicState?.botDifficulty ?? "medium"}
+            consumptionIntervalSeconds={
+              game.publicState?.consumptionIntervalSeconds ?? 10
+            }
           />
         </div>
       </main>
@@ -172,21 +176,21 @@ export default function GamePage() {
           <ResourcesPanel priv={game.privateState} />
         </div>
 
-        <div className="lg:col-span-5 flex flex-col gap-3">
-          <OrderBookView
+        <div className="lg:col-span-6 flex flex-col gap-3">
+          <OrderBookGrid
             orderBooks={game.orderBooks}
             selectedFood={selectedFood}
             setSelectedFood={pickFood}
           />
-          <OrderEntry
+          <OrderEntryGrid
             socket={game.socket}
             roomCode={roomCode}
             playerId={game.playerId ?? ""}
+            priv={game.privateState}
+            orderBooks={game.orderBooks}
+            disabled={inputDisabled}
             selectedFood={selectedFood}
             setSelectedFood={pickFood}
-            priv={game.privateState}
-            disabled={inputDisabled}
-            pickTrigger={pickTrigger}
           />
           <OwnOrders
             socket={game.socket}
@@ -197,7 +201,7 @@ export default function GamePage() {
           />
         </div>
 
-        <div className="lg:col-span-4 flex flex-col gap-3">
+        <div className="lg:col-span-3 flex flex-col gap-3">
           <RecentTrades trades={game.publicState?.recentTrades ?? []} />
           <EventLog events={game.publicState?.publicEventLog ?? []} />
         </div>

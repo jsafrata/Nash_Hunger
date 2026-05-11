@@ -104,6 +104,7 @@ export interface GameRoom {
   rateLimits: Map<string, RateLimitState>;
   winnerIds: string[];
   endReason: GameEndReason | null;
+  botDifficulty: BotDifficulty;
 }
 
 export interface RateLimitState {
@@ -113,6 +114,8 @@ export interface RateLimitState {
 }
 
 export type GameEndReason = "time_limit" | "single_survivor" | "no_survivors";
+
+export type BotDifficulty = "easy" | "medium" | "hard";
 
 export interface PublicOrderBookLevel {
   pricePerUnit: number;
@@ -159,6 +162,8 @@ export interface PublicGameState {
   players: PublicPlayerState[];
   recentTrades: PublicTrade[];
   publicEventLog: GameEvent[];
+  botDifficulty: BotDifficulty;
+  consumptionIntervalSeconds: number;
 }
 
 export interface PrivatePlayerState {

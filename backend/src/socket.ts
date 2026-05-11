@@ -70,6 +70,11 @@ interface RemoveBotPayload {
   playerId: string;
   botId: string;
 }
+interface SetBotDifficultyPayload {
+  roomCode: string;
+  playerId: string;
+  difficulty: "easy" | "medium" | "hard";
+}
 
 function emitError(socket: Socket, code: string, message: string): void {
   socket.emit("error_message", { code, message });
@@ -267,6 +272,41 @@ export function attachSocketHandlers(io: Server): void {
           socket,
           "remove_bot_failed",
           err instanceof Error ? err.message : "Failed to remove bot.",
+        );
+      }
+    });
+
+    socket.on("set_bot_difficulty", (payload: SetBotDifficultyPayload) => {
+      try {
+        const room = getRoom(payload.roomCode);
+        if (!room) {
+          emitError(socket, "no_room", "Room not found.");
+          return;
+        }
+        if (room.phase !== "lobby") {
+          emitError(
+            socket,
+            "game_in_progress",
+            "Cannot change difficulty after game starts.",
+          );
+          return;
+        }
+        const requester = findPlayerById(room, payload.playerId);
+        if (!requester || !requester.isHost) {
+          emitError(socket, "not_host", "Only the host can change difficulty.");
+          return;
+        }
+        if (!["easy", "medium", "hard"].includes(payload.difficulty)) {
+          emitError(socket, "bad_difficulty", "Unknown difficulty.");
+          return;
+        }
+        room.botDifficulty = payload.difficulty;
+        emitFullState(io, room);
+      } catch (err) {
+        emitError(
+          socket,
+          "set_difficulty_failed",
+          err instanceof Error ? err.message : "Failed to set difficulty.",
         );
       }
     });

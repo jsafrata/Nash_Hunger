@@ -24,14 +24,17 @@ export function gameTick(room: GameRoom): TickResult {
 
   produceFood(room);
 
-  const deathInfos = consumeFoodAndKill(room);
-  for (const d of deathInfos) {
-    const event = killPlayer(room, d.player, d.missingFoods);
-    result.deaths.push({
-      playerId: d.player.id,
-      missingFoods: d.missingFoods,
-    });
-    void event;
+  // Consumption only fires every CONSUMPTION_INTERVAL_SECONDS ticks.
+  if (room.elapsedSeconds % GAME_CONFIG.CONSUMPTION_INTERVAL_SECONDS === 0) {
+    const deathInfos = consumeFoodAndKill(room);
+    for (const d of deathInfos) {
+      const event = killPlayer(room, d.player, d.missingFoods);
+      result.deaths.push({
+        playerId: d.player.id,
+        missingFoods: d.missingFoods,
+      });
+      void event;
+    }
   }
 
   const livingCount = room.players.filter((p) => p.status === "alive").length;

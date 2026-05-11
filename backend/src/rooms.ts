@@ -41,6 +41,7 @@ export function createRoom(): GameRoom {
     rateLimits: new Map(),
     winnerIds: [],
     endReason: null,
+    botDifficulty: "medium",
   };
   rooms.set(code, room);
   return room;

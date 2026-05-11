@@ -1,4 +1,4 @@
-import type { GameRoom, FoodType, Player, Trade } from "../types";
+import type { BotDifficulty, GameRoom, FoodType, Player, Trade } from "../types";
 import { FOOD_TYPES } from "../types";
 import { postOrder } from "../market/orderActions";
 import { OrderValidationError } from "../market/validation";
@@ -129,14 +129,24 @@ export function runBotActions(room: GameRoom, bot: Player): BotActionResult {
   return { trades: allTrades };
 }
 
+// Bot cadence by difficulty. Returns [minMs, jitterMs] — actual cadence is min+rand(jitter).
+const BOT_CADENCE_BY_DIFFICULTY: Record<BotDifficulty, [number, number]> = {
+  easy: [3500, 2000],   // 3.5–5.5 s
+  medium: [1500, 1000], // 1.5–2.5 s (previous default)
+  hard: [500, 500],     // 0.5–1.0 s
+};
+
 export function startBotLoop(
   room: GameRoom,
   bot: Player,
   onAction: (room: GameRoom, bot: Player, trades: Trade[]) => void,
 ): void {
   if (room.botIntervals.has(bot.id)) return;
-  const cadence = 1500 + Math.floor(Math.random() * 1000);
-  const initialDelay = 500 + Math.floor(Math.random() * 1500);
+  const [minMs, jitterMs] =
+    BOT_CADENCE_BY_DIFFICULTY[room.botDifficulty] ??
+    BOT_CADENCE_BY_DIFFICULTY.medium;
+  const cadence = minMs + Math.floor(Math.random() * jitterMs);
+  const initialDelay = Math.floor(cadence * (0.3 + Math.random() * 0.7));
 
   const tick = () => {
     if (room.phase !== "active") return;

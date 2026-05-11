@@ -13,9 +13,14 @@ export function buildPrivatePlayerState(player: Player): PrivatePlayerState {
   const avail = availableInventory(player.inventory, player.reservedInventory);
   const required = requiredFoods(player.produces);
   const consume = GAME_CONFIG.CONSUMPTION_PER_REQUIRED_FOOD_PER_SECOND;
+  const interval = GAME_CONFIG.CONSUMPTION_INTERVAL_SECONDS;
   const secondsUntilStarvation: Partial<Record<FoodType, number>> = {};
   for (const f of required) {
-    secondsUntilStarvation[f] = Math.max(0, Math.floor(avail[f] / consume));
+    // Each unit lasts `interval` seconds since consumption fires every `interval` ticks.
+    secondsUntilStarvation[f] = Math.max(
+      0,
+      Math.floor(avail[f] / consume) * interval,
+    );
   }
 
   return {
