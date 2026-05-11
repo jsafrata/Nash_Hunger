@@ -22,10 +22,13 @@ export function gameTick(room: GameRoom): TickResult {
 
   room.elapsedSeconds += 1;
 
-  produceFood(room);
-
-  // Consumption only fires every CONSUMPTION_INTERVAL_SECONDS ticks.
+  // Production and consumption are synced — both fire once per consumption
+  // interval. This preserves the per-cycle balance: +2 own food vs −1 of each
+  // of 3 required foods (net −1 per cycle) and stops food from accumulating
+  // between consumption ticks.
   if (room.elapsedSeconds % GAME_CONFIG.CONSUMPTION_INTERVAL_SECONDS === 0) {
+    produceFood(room);
+
     const deathInfos = consumeFoodAndKill(room);
     for (const d of deathInfos) {
       const event = killPlayer(room, d.player, d.missingFoods);

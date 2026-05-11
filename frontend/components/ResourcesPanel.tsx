@@ -50,7 +50,7 @@ export function ResourcesPanel({ priv }: { priv: PrivatePlayerState | null }) {
               >
                 {FOOD_DISPLAY_NAMES[priv.produces]}
               </span>
-              <span className="text-bid ml-1">+2/s</span>
+              <span className="text-bid ml-1">+2/cycle</span>
             </div>
           )}
         </div>

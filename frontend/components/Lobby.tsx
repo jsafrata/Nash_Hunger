@@ -172,10 +172,10 @@ export function Lobby({
       </button>
 
       <div className="mt-5 text-xs text-muted leading-relaxed">
-        Each player produces one food (+2/s) and must eat the other three
-        (−1 every {consumptionIntervalSeconds}s). Trade through the order book.
-        The surviving player with the most cash after 3 minutes wins. Reserved
-        food in your asks cannot be eaten.
+        Each player produces one food (+2 every {consumptionIntervalSeconds}s)
+        and must eat the other three (−1 every {consumptionIntervalSeconds}s).
+        Trade through the order book. The surviving player with the most cash
+        after 3 minutes wins. Reserved food in your asks cannot be eaten.
       </div>
     </div>
   );
