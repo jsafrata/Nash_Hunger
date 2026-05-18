@@ -6,12 +6,11 @@ import { useGameState } from "../../../hooks/useGameState";
 import { getSocket, loadSession, saveSession } from "../../../lib/socket";
 import type { FoodType } from "../../../lib/types";
 import { TimerBar } from "../../../components/TimerBar";
-import { PlayerPanel } from "../../../components/PlayerPanel";
-import { ResourcesPanel } from "../../../components/ResourcesPanel";
-import { OrderEntryGrid } from "../../../components/OrderEntryGrid";
-import { OrderBookGrid } from "../../../components/OrderBookGrid";
+import { PlayerHandBanner } from "../../../components/PlayerHandBanner";
+import { OpponentsRow } from "../../../components/OpponentsRow";
+import { FoodRowsGrid } from "../../../components/FoodRowsGrid";
 import { OwnOrders } from "../../../components/OwnOrders";
-import { RecentTrades } from "../../../components/RecentTrades";
+import { TradeHistoryTable } from "../../../components/TradeHistoryTable";
 import { EventLog } from "../../../components/EventLog";
 import { Lobby } from "../../../components/Lobby";
 import { GameOverModal } from "../../../components/GameOverModal";
@@ -167,22 +166,27 @@ export default function GamePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <div className="lg:col-span-3 flex flex-col gap-3">
-          <PlayerPanel
-            players={game.publicState?.players ?? []}
-            selfId={game.playerId}
-          />
-          <ResourcesPanel priv={game.privateState} />
-        </div>
+      {/* Top: player hand banner (your cash + inventory by food) */}
+      <PlayerHandBanner
+        priv={game.privateState}
+        name={
+          game.publicState?.players.find((p) => p.id === game.playerId)?.name ??
+          "You"
+        }
+      />
 
-        <div className="lg:col-span-6 flex flex-col gap-3">
-          <OrderBookGrid
-            orderBooks={game.orderBooks}
-            selectedFood={selectedFood}
-            setSelectedFood={pickFood}
-          />
-          <OrderEntryGrid
+      {/* Opponents row with per-food +/- deltas */}
+      <OpponentsRow
+        players={game.publicState?.players ?? []}
+        selfId={game.playerId}
+        recentTrades={game.publicState?.recentTrades ?? []}
+        currentTick={game.publicState?.elapsedSeconds ?? 0}
+      />
+
+      {/* Main layout: food rows on the left, trade history + event log on the right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <div className="lg:col-span-9 flex flex-col gap-3">
+          <FoodRowsGrid
             socket={game.socket}
             roomCode={roomCode}
             playerId={game.playerId ?? ""}
@@ -202,7 +206,10 @@ export default function GamePage() {
         </div>
 
         <div className="lg:col-span-3 flex flex-col gap-3">
-          <RecentTrades trades={game.publicState?.recentTrades ?? []} />
+          <TradeHistoryTable
+            trades={game.publicState?.recentTrades ?? []}
+            selfId={game.playerId}
+          />
           <EventLog events={game.publicState?.publicEventLog ?? []} />
         </div>
       </div>
