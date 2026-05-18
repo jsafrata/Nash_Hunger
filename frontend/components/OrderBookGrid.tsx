@@ -1,7 +1,12 @@
 "use client";
 
 import type { FoodType, PublicOrderBook } from "../lib/types";
-import { FOOD_DISPLAY_NAMES, FOOD_TYPES, FOOD_COLORS } from "../lib/types";
+import {
+  FOOD_DISPLAY_NAMES,
+  FOOD_TYPES,
+  FOOD_COLORS,
+  FOOD_EMOJIS,
+} from "../lib/types";
 
 const ROWS_PER_SIDE = 4;
 
@@ -42,12 +47,7 @@ function FoodBook({
   active: boolean;
   onClick: () => void;
 }) {
-  const bestBid = book?.bids[0]?.pricePerUnit;
-  const bestAsk = book?.asks[0]?.pricePerUnit;
-  const spread =
-    bestBid !== undefined && bestAsk !== undefined ? bestAsk - bestBid : null;
-
-  // Pad lists to fixed rows so all 4 columns line up vertically.
+  // Pad both sides to ROWS_PER_SIDE so all 4 columns line up vertically.
   const asks = (book?.asks ?? []).slice(0, ROWS_PER_SIDE);
   while (asks.length < ROWS_PER_SIDE)
     asks.push({ pricePerUnit: -1, totalQuantity: 0 });
@@ -63,10 +63,7 @@ function FoodBook({
       }`}
     >
       <div className="flex items-center gap-1.5 mb-1.5">
-        <span
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{ background: FOOD_COLORS[food] }}
-        />
+        <span className="text-base leading-none">{FOOD_EMOJIS[food]}</span>
         <span
           className="text-xs font-semibold"
           style={{ color: FOOD_COLORS[food] }}
@@ -80,19 +77,19 @@ function FoodBook({
         <span className="text-right">Qty</span>
       </div>
 
-      {/* asks: low → high, reversed so the spread is in the middle */}
-      <div className="space-y-0.5 mb-1">
+      {/* asks: low → high, reversed so the lowest ask is closest to the bids */}
+      <div className="space-y-0.5">
         {asks
           .slice()
           .reverse()
           .map((l, i) => (
             <div
               key={`a${i}`}
-              className="grid grid-cols-2 text-xs mono tabular"
+              className="grid grid-cols-2 text-xs mono tabular h-[18px]"
             >
               {l.pricePerUnit < 0 ? (
                 <>
-                  <span className="text-muted/40">·</span>
+                  <span className="text-muted/30">·</span>
                   <span></span>
                 </>
               ) : (
@@ -105,22 +102,18 @@ function FoodBook({
           ))}
       </div>
 
-      <div className="flex items-center justify-between border-y border-line/40 py-0.5 mb-1 text-[10px]">
-        <span className="text-muted">spread</span>
-        <span className="mono tabular text-accent font-semibold">
-          {spread !== null ? `$${spread}` : "—"}
-        </span>
-      </div>
+      {/* thin separator between asks and bids (replaces the old spread row) */}
+      <div className="border-t border-line/60 my-1" />
 
       <div className="space-y-0.5">
         {bids.map((l, i) => (
           <div
             key={`b${i}`}
-            className="grid grid-cols-2 text-xs mono tabular"
+            className="grid grid-cols-2 text-xs mono tabular h-[18px]"
           >
             {l.pricePerUnit < 0 ? (
               <>
-                <span className="text-muted/40">·</span>
+                <span className="text-muted/30">·</span>
                 <span></span>
               </>
             ) : (

@@ -3,10 +3,17 @@ export type FoodType = "A" | "B" | "C" | "D";
 export const FOOD_TYPES: FoodType[] = ["A", "B", "C", "D"];
 
 export const FOOD_DISPLAY_NAMES: Record<FoodType, string> = {
-  A: "Ube",
-  B: "Iceberg",
-  C: "Oats",
-  D: "Pork",
+  A: "Grain",
+  B: "Veggie",
+  C: "Meat",
+  D: "Milk",
+};
+
+export const FOOD_EMOJIS: Record<FoodType, string> = {
+  A: "🌾",
+  B: "🥬",
+  C: "🥩",
+  D: "🥛",
 };
 
 export type Inventory = Record<FoodType, number>;

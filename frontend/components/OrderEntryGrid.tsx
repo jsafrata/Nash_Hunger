@@ -11,6 +11,7 @@ import {
   FOOD_DISPLAY_NAMES,
   FOOD_TYPES,
   FOOD_COLORS,
+  FOOD_EMOJIS,
   FOOD_HOTKEYS,
   HOTKEY_TO_FOOD,
 } from "../lib/types";
@@ -50,41 +51,7 @@ export function OrderEntryGrid({
     };
   }, []);
 
-  const marketBuy = (food: FoodType) => {
-    if (!socket || disabled || !priv) return;
-    const book = orderBooks?.[food];
-    const bestAsk = book?.asks[0]?.pricePerUnit;
-    if (bestAsk === undefined) return;
-    if (priv.availableCash < bestAsk) return;
-    socket.emit("post_order", {
-      roomCode,
-      playerId,
-      side: "bid",
-      foodType: food,
-      quantity: 1,
-      pricePerUnit: bestAsk,
-    });
-    bumpFlash();
-  };
-
-  const marketSell = (food: FoodType) => {
-    if (!socket || disabled || !priv) return;
-    const book = orderBooks?.[food];
-    const bestBid = book?.bids[0]?.pricePerUnit;
-    if (bestBid === undefined) return;
-    if (priv.availableInventory[food] < 1) return;
-    socket.emit("post_order", {
-      roomCode,
-      playerId,
-      side: "ask",
-      foodType: food,
-      quantity: 1,
-      pricePerUnit: bestBid,
-    });
-    bumpFlash();
-  };
-
-  // Global hotkeys: u/i/o/p picks food; c cancels all.
+  // Global hotkeys: g/v/m/k picks food; c cancels all.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (disabled) return;
@@ -123,7 +90,7 @@ export function OrderEntryGrid({
           )}
         </div>
         <div className="text-[10px] text-muted">
-          <span className="text-accent">u/i/o/p</span> select ·{" "}
+          <span className="text-accent">g/v/m/k</span> select ·{" "}
           <span className="text-accent">c</span> cancel-all
         </div>
       </div>
@@ -142,11 +109,60 @@ export function OrderEntryGrid({
             active={f === selectedFood}
             onActivate={() => setSelectedFood(f)}
             onPostedFlash={bumpFlash}
-            onMarketBuy={() => marketBuy(f)}
-            onMarketSell={() => marketSell(f)}
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function Stepper({
+  value,
+  min,
+  onChange,
+  disabled,
+}: {
+  value: number;
+  min: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-stretch gap-0.5">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange(Math.max(min, value - 1));
+        }}
+        disabled={disabled || value <= min}
+        className="w-6 rounded text-sm leading-none border border-line hover:bg-elevated/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        aria-label="decrease"
+      >
+        ▼
+      </button>
+      <input
+        type="number"
+        min={min}
+        step={1}
+        value={value}
+        disabled={disabled}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onChange(parseInt(e.target.value || String(min), 10))}
+        className="flex-1 min-w-0 text-xs px-1 py-1 text-center"
+      />
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange(value + 1);
+        }}
+        disabled={disabled}
+        className="w-6 rounded text-sm leading-none border border-line hover:bg-elevated/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        aria-label="increase"
+      >
+        ▲
+      </button>
     </div>
   );
 }
@@ -162,8 +178,6 @@ function FoodEntry({
   active,
   onActivate,
   onPostedFlash,
-  onMarketBuy,
-  onMarketSell,
 }: {
   food: FoodType;
   socket: Socket | null;
@@ -175,22 +189,16 @@ function FoodEntry({
   active: boolean;
   onActivate: () => void;
   onPostedFlash: () => void;
-  onMarketBuy: () => void;
-  onMarketSell: () => void;
 }) {
   const [qty, setQty] = useState<number>(1);
   const [price, setPrice] = useState<number>(5);
 
-  const book = orderBooks?.[food];
-  const bestAsk = book?.asks[0]?.pricePerUnit;
-  const bestBid = book?.bids[0]?.pricePerUnit;
   const availCash = priv?.availableCash ?? 0;
   const availFood = priv?.availableInventory[food] ?? 0;
 
-  const canMarketBuy = bestAsk !== undefined && availCash >= bestAsk;
-  const canMarketSell = bestBid !== undefined && availFood >= 1;
+  void orderBooks; // reserved for future use
 
-  const postBid = () => {
+  const postBuy = () => {
     if (!socket || disabled) return;
     if (!Number.isInteger(qty) || qty < 1) return;
     if (!Number.isInteger(price) || price < 0) return;
@@ -229,11 +237,8 @@ function FoodEntry({
       }`}
       onClick={onActivate}
     >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{ background: FOOD_COLORS[food] }}
-        />
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-base leading-none">{FOOD_EMOJIS[food]}</span>
         <span
           className="text-xs font-semibold flex-1"
           style={{ color: FOOD_COLORS[food] }}
@@ -245,84 +250,41 @@ function FoodEntry({
         </span>
       </div>
 
-      {/* Quick market buttons */}
-      <div className="grid grid-cols-2 gap-1 mb-2">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMarketBuy();
-          }}
-          disabled={disabled || !canMarketBuy}
-          className="rounded text-xs font-semibold py-1.5 bg-bid/20 border border-bid/40 text-bid hover:bg-bid/30 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          title={
-            !canMarketBuy
-              ? bestAsk === undefined
-                ? "no asks"
-                : `need $${bestAsk}, have $${availCash}`
-              : `buy 1 @ $${bestAsk}`
-          }
-        >
-          BUY 1
-          <div className="text-[9px] opacity-70 font-normal">
-            {bestAsk !== undefined ? `@$${bestAsk}` : "—"}
-          </div>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMarketSell();
-          }}
-          disabled={disabled || !canMarketSell}
-          className="rounded text-xs font-semibold py-1.5 bg-ask/20 border border-ask/40 text-ask hover:bg-ask/30 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          title={
-            !canMarketSell
-              ? bestBid === undefined
-                ? "no bids"
-                : `you have ${availFood}`
-              : `sell 1 @ $${bestBid}`
-          }
-        >
-          SELL 1
-          <div className="text-[9px] opacity-70 font-normal">
-            {bestBid !== undefined ? `@$${bestBid}` : "—"}
-          </div>
-        </button>
-      </div>
-
-      {/* Manual entry */}
-      <div className="space-y-1">
-        <div className="grid grid-cols-2 gap-1">
-          <input
-            type="number"
-            min={1}
-            step={1}
+      <div className="space-y-2">
+        <div>
+          <label className="block text-[10px] text-muted uppercase tracking-wider mb-1">
+            Quantity
+          </label>
+          <Stepper
             value={qty}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => setQty(parseInt(e.target.value || "0", 10))}
-            className="w-full text-xs px-1.5 py-1"
-            placeholder="qty"
-          />
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={price}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => setPrice(parseInt(e.target.value || "0", 10))}
-            className="w-full text-xs px-1.5 py-1"
-            placeholder="$"
+            min={1}
+            onChange={setQty}
+            disabled={disabled}
           />
         </div>
-        <div className="grid grid-cols-2 gap-1">
+
+        <div>
+          <label className="block text-[10px] text-muted uppercase tracking-wider mb-1">
+            Price per unit
+          </label>
+          <Stepper
+            value={price}
+            min={0}
+            onChange={setPrice}
+            disabled={disabled}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-1 pt-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              postBid();
+              postBuy();
             }}
             disabled={disabled || qty * price > availCash}
-            className="rounded text-[11px] py-1 border border-line hover:bg-bid/10 hover:border-bid/40 hover:text-bid disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="rounded text-xs font-semibold py-1.5 bg-bid/20 border border-bid/40 text-bid hover:bg-bid/30 disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
-            bid
+            buy
           </button>
           <button
             onClick={(e) => {
@@ -330,7 +292,7 @@ function FoodEntry({
               postAsk();
             }}
             disabled={disabled || qty > availFood}
-            className="rounded text-[11px] py-1 border border-line hover:bg-ask/10 hover:border-ask/40 hover:text-ask disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="rounded text-xs font-semibold py-1.5 bg-ask/20 border border-ask/40 text-ask hover:bg-ask/30 disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             ask
           </button>

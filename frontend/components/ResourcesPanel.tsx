@@ -1,7 +1,12 @@
 "use client";
 
 import type { PrivatePlayerState } from "../lib/types";
-import { FOOD_DISPLAY_NAMES, FOOD_TYPES, FOOD_COLORS } from "../lib/types";
+import {
+  FOOD_DISPLAY_NAMES,
+  FOOD_TYPES,
+  FOOD_COLORS,
+  FOOD_EMOJIS,
+} from "../lib/types";
 
 export function ResourcesPanel({ priv }: { priv: PrivatePlayerState | null }) {
   if (!priv) {
@@ -12,11 +17,6 @@ export function ResourcesPanel({ priv }: { priv: PrivatePlayerState | null }) {
       </div>
     );
   }
-
-  const minSurvival = Math.min(
-    ...priv.requiredFoods.map((f) => priv.secondsUntilStarvation[f] ?? 0),
-    Infinity,
-  );
 
   return (
     <div className="card p-4 space-y-4">
@@ -48,7 +48,7 @@ export function ResourcesPanel({ priv }: { priv: PrivatePlayerState | null }) {
                 className="font-bold"
                 style={{ color: FOOD_COLORS[priv.produces] }}
               >
-                {FOOD_DISPLAY_NAMES[priv.produces]}
+                {FOOD_EMOJIS[priv.produces]} {FOOD_DISPLAY_NAMES[priv.produces]}
               </span>
               <span className="text-bid ml-1">+2/cycle</span>
             </div>
@@ -58,32 +58,22 @@ export function ResourcesPanel({ priv }: { priv: PrivatePlayerState | null }) {
         <div className="space-y-1">
           {FOOD_TYPES.map((f) => {
             const isProducer = priv.produces === f;
-            const survival = priv.secondsUntilStarvation[f];
-            const danger =
-              !isProducer && typeof survival === "number" && survival <= 5;
-            const warn =
-              !isProducer && typeof survival === "number" && survival <= 10;
             return (
               <div
                 key={f}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md border ${
-                  danger
-                    ? "border-danger/50 bg-danger/10"
-                    : warn
-                      ? "border-warn/30 bg-warn/5"
-                      : isProducer
-                        ? "border-blue-400/60 bg-blue-400/15"
-                        : "border-line"
+                  isProducer
+                    ? "border-blue-400/60 bg-blue-400/15"
+                    : "border-line"
                 }`}
               >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ background: FOOD_COLORS[f] }}
-                />
-                <span className="font-medium w-14 shrink-0">
+                <span className="text-base leading-none">
+                  {FOOD_EMOJIS[f]}
+                </span>
+                <span className="font-medium flex-1">
                   {FOOD_DISPLAY_NAMES[f]}
                 </span>
-                <span className="mono tabular text-right w-10">
+                <span className="mono tabular text-right">
                   {priv.inventory[f]}
                 </span>
                 {priv.reservedInventory[f] > 0 && (
@@ -91,29 +81,15 @@ export function ResourcesPanel({ priv }: { priv: PrivatePlayerState | null }) {
                     ({priv.reservedInventory[f]} reserved)
                   </span>
                 )}
-                <span className="ml-auto text-xs">
-                  {isProducer ? (
-                    <span className="text-blue-300 font-medium">producer</span>
-                  ) : (
-                    <span
-                      className={`mono tabular font-bold ${
-                        danger ? "text-danger" : warn ? "text-warn" : "text-muted"
-                      }`}
-                    >
-                      {survival ?? 0}s
-                    </span>
-                  )}
-                </span>
+                {isProducer && (
+                  <span className="text-[10px] text-blue-300 font-medium uppercase">
+                    yours
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
-
-        {minSurvival !== Infinity && minSurvival <= 5 && (
-          <div className="mt-2 px-3 py-2 rounded-md bg-danger/15 border border-danger/40 text-danger text-xs font-bold">
-            ⚠ Starving in {minSurvival}s — buy food now
-          </div>
-        )}
       </div>
     </div>
   );
