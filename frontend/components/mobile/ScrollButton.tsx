@@ -93,11 +93,10 @@ export function ScrollButton({
           if (!disabled) onAction();
         }}
         disabled={disabled}
-        className={`flex-1 px-2 ${actionBg} ${actionFg} font-bold text-sm leading-tight flex flex-col items-center justify-center gap-0.5 active:brightness-110 disabled:cursor-not-allowed`}
+        className={`flex-1 px-2 ${actionBg} ${actionFg} font-bold text-sm leading-tight flex items-center justify-center active:brightness-110 disabled:cursor-not-allowed`}
         title={`${label} at $${price}`}
       >
         <span>{label}</span>
-        <span className="text-[10px] opacity-80 mono">${price}</span>
       </button>
 
       {/* RIGHT: vertical-swipe area for the price */}
