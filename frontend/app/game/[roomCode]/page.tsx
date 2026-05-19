@@ -14,6 +14,8 @@ import { TradeHistoryTable } from "../../../components/TradeHistoryTable";
 import { EventLog } from "../../../components/EventLog";
 import { Lobby } from "../../../components/Lobby";
 import { GameOverModal } from "../../../components/GameOverModal";
+import { useIsMobile } from "../../../hooks/useIsMobile";
+import { MobileGame } from "../../../components/mobile/MobileGame";
 
 export default function GamePage() {
   const params = useParams();
@@ -24,6 +26,7 @@ export default function GamePage() {
   const [pickTrigger, setPickTrigger] = useState(0);
   const [joinName, setJoinName] = useState("");
   const [needsJoin, setNeedsJoin] = useState(false);
+  const isMobile = useIsMobile();
 
   const pickFood = (f: FoodType) => {
     setSelectedFood(f);
@@ -146,6 +149,37 @@ export default function GamePage() {
     "dead";
   const inputDisabled = phase !== "active" || dead;
 
+  // Mobile UI — completely separate layout. Desktop layout below is unchanged.
+  if (isMobile) {
+    return (
+      <main>
+        {dead && phase === "active" && (
+          <div className="px-3 py-2 text-center text-danger text-sm bg-danger/10 border-b border-danger/40">
+            You have died. Spectating until the game ends.
+          </div>
+        )}
+        {game.lastError && (
+          <div className="px-3 py-2 text-sm text-danger bg-danger/10 border-b border-danger/40">
+            {game.lastError.message}
+          </div>
+        )}
+        <MobileGame
+          socket={game.socket}
+          roomCode={roomCode}
+          playerId={game.playerId}
+          publicState={game.publicState}
+          privateState={game.privateState}
+          orderBooks={game.orderBooks}
+          disabled={inputDisabled}
+        />
+        {game.gameOver && (
+          <GameOverModal payload={game.gameOver} selfId={game.playerId} />
+        )}
+      </main>
+    );
+  }
+
+  // Desktop UI (unchanged below).
   return (
     <main className="min-h-screen p-4 flex flex-col gap-3 max-w-7xl mx-auto">
       <TimerBar
