@@ -203,9 +203,9 @@ export function MobileGame({
           const canBuy = bidPrices[f] <= availCash;
           const canAsk = availFood >= 1;
           return (
-            <div key={f} className="grid grid-cols-2 gap-1.5 h-12">
+            <div key={f} className="grid grid-cols-2 gap-1.5 h-[72px]">
               <ScrollButton
-                label={`buy ${FOOD_EMOJIS[f]}`}
+                label={`BUY ${FOOD_EMOJIS[f]}`}
                 price={bidPrices[f]}
                 onPriceChange={(p) =>
                   setBidPrices((cur) => ({ ...cur, [f]: p }))
@@ -216,7 +216,7 @@ export function MobileGame({
                 disabled={disabled || !canBuy}
               />
               <ScrollButton
-                label={`ask ${FOOD_EMOJIS[f]}`}
+                label={`ASK ${FOOD_EMOJIS[f]}`}
                 price={askPrices[f]}
                 onPriceChange={(p) =>
                   setAskPrices((cur) => ({ ...cur, [f]: p }))
