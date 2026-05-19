@@ -36,14 +36,6 @@ export function PlayerHandBanner({
           const color = FOOD_COLORS[f];
           return (
             <div key={f} className="relative">
-              {isProducer && (
-                <div
-                  className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-px rounded-full text-bg whitespace-nowrap z-10"
-                  style={{ background: color }}
-                >
-                  you make
-                </div>
-              )}
               <div
                 className={`flex items-center gap-1.5 rounded-md border transition ${
                   isProducer
