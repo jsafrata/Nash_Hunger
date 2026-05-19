@@ -11,11 +11,11 @@ import type {
 } from "../../lib/types";
 import {
   FOOD_COLORS,
-  FOOD_DISPLAY_NAMES,
   FOOD_EMOJIS,
   FOOD_TYPES,
 } from "../../lib/types";
-import { PriceSwipe } from "./PriceSwipe";
+import { BidAskLastTable } from "./BidAskLastTable";
+import { ScrollButton } from "./ScrollButton";
 
 interface MobileGameProps {
   socket: Socket | null;
@@ -49,15 +49,23 @@ export function MobileGame({
   const selfName =
     publicState?.players.find((p) => p.id === playerId)?.name ?? "You";
 
-  // Per-food price state — independent for each row.
-  const [prices, setPrices] = useState<Record<FoodType, number>>({
+  // Per-food, per-side prices (so bid price for Grain and ask price for Grain
+  // can differ). Initialized to a sane default.
+  const [bidPrices, setBidPrices] = useState<Record<FoodType, number>>({
     A: 5,
     B: 5,
     C: 5,
     D: 5,
   });
-  // Initialize per-food price to last trade price the first time we see one.
-  const priceInitRef = useRef<Record<FoodType, boolean>>({
+  const [askPrices, setAskPrices] = useState<Record<FoodType, number>>({
+    A: 5,
+    B: 5,
+    C: 5,
+    D: 5,
+  });
+
+  // Snap each price to the last-trade price the first time we see one.
+  const initRef = useRef<Record<FoodType, boolean>>({
     A: false,
     B: false,
     C: false,
@@ -66,11 +74,12 @@ export function MobileGame({
   useEffect(() => {
     if (!orderBooks) return;
     for (const f of FOOD_TYPES) {
-      if (priceInitRef.current[f]) continue;
+      if (initRef.current[f]) continue;
       const last = orderBooks[f]?.lastTradePrice;
       if (last != null) {
-        setPrices((p) => ({ ...p, [f]: last }));
-        priceInitRef.current[f] = true;
+        setBidPrices((p) => ({ ...p, [f]: last }));
+        setAskPrices((p) => ({ ...p, [f]: last }));
+        initRef.current[f] = true;
       }
     }
   }, [orderBooks]);
@@ -90,7 +99,7 @@ export function MobileGame({
 
   const placeOrder = (food: FoodType, side: "bid" | "ask") => {
     if (!socket || disabled) return;
-    const price = prices[food];
+    const price = side === "bid" ? bidPrices[food] : askPrices[food];
     socket.emit("post_order", {
       roomCode,
       playerId,
@@ -103,17 +112,18 @@ export function MobileGame({
   };
 
   const players = publicState?.players ?? [];
+  const priv = privateState;
 
   return (
-    <div className="min-h-screen flex flex-col gap-2 p-2">
-      {/* Top header — compact: time, cash */}
-      <div className="card px-3 py-2 flex items-center justify-between">
+    <div className="h-screen flex flex-col gap-1.5 p-1.5 overflow-hidden">
+      {/* 1. Time + cash */}
+      <div className="card px-3 py-1.5 flex items-center justify-between shrink-0">
         <div className="flex items-baseline gap-2">
           <span className="text-[10px] text-muted uppercase tracking-wider">
             time
           </span>
           <span
-            className={`mono tabular font-bold text-2xl ${
+            className={`mono tabular font-bold text-xl ${
               remaining <= 30
                 ? "text-danger"
                 : remaining <= 60
@@ -128,23 +138,23 @@ export function MobileGame({
           <span className="text-[10px] text-muted uppercase tracking-wider">
             cash
           </span>
-          <span className="mono tabular font-bold text-2xl text-accent">
-            ${privateState?.cash ?? 0}
+          <span className="mono tabular font-bold text-xl text-accent">
+            ${priv?.cash ?? 0}
           </span>
         </div>
       </div>
 
-      {/* Your inventory strip */}
-      <div className="card px-2 py-1.5">
+      {/* 2. Your inventory strip */}
+      <div className="card px-2 py-1 shrink-0">
         <div className="flex justify-around items-center">
           {FOOD_TYPES.map((f) => {
-            const isProducer = privateState?.produces === f;
-            const count = privateState?.inventory[f] ?? 0;
+            const isProducer = priv?.produces === f;
+            const count = priv?.inventory[f] ?? 0;
             const color = FOOD_COLORS[f];
             return (
               <div
                 key={f}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md ${
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-md ${
                   isProducer ? "border-2" : ""
                 }`}
                 style={{
@@ -152,9 +162,11 @@ export function MobileGame({
                   borderColor: isProducer ? color : "transparent",
                 }}
               >
-                <span className="text-base leading-none">{FOOD_EMOJIS[f]}</span>
+                <span className="text-base leading-none">
+                  {FOOD_EMOJIS[f]}
+                </span>
                 <span
-                  className="mono tabular font-bold text-lg"
+                  className="mono tabular font-bold text-base"
                   style={{ color }}
                 >
                   {count}
@@ -165,29 +177,58 @@ export function MobileGame({
         </div>
       </div>
 
-      {/* Players strip */}
-      <PlayersStrip players={players} selfId={playerId} selfName={selfName} aliveCount={aliveCount} totalSeats={totalSeats} />
+      {/* 3. Players */}
+      <PlayersStrip
+        players={players}
+        selfId={playerId}
+        selfName={selfName}
+        aliveCount={aliveCount}
+        totalSeats={totalSeats}
+      />
 
-      {/* 4 food cards stacked, each: name | swipe-price | [BUY][SELL] */}
-      <div className="flex flex-col gap-2 relative">
+      {/* 4. Bid/Ask/Last table */}
+      <BidAskLastTable orderBooks={orderBooks} />
+
+      {/* 5. 4×2 grid of ScrollButtons (buy on left, ask on right per row) */}
+      <div className="relative flex-1 flex flex-col gap-1.5 min-h-0">
         {postedFlash > 0 && (
-          <div className="absolute -top-1 right-2 text-[10px] text-bid pointer-events-none">
+          <div className="absolute -top-1 right-1 text-[10px] text-bid pointer-events-none z-10">
             ✓ ×{postedFlash}
           </div>
         )}
-        {FOOD_TYPES.map((f) => (
-          <FoodCard
-            key={f}
-            food={f}
-            price={prices[f]}
-            setPrice={(p) => setPrices((cur) => ({ ...cur, [f]: p }))}
-            book={orderBooks?.[f]}
-            priv={privateState}
-            disabled={disabled}
-            onBuy={() => placeOrder(f, "bid")}
-            onSell={() => placeOrder(f, "ask")}
-          />
-        ))}
+        {FOOD_TYPES.map((f) => {
+          const color = FOOD_COLORS[f];
+          const availCash = priv?.availableCash ?? 0;
+          const availFood = priv?.availableInventory[f] ?? 0;
+          const canBuy = bidPrices[f] <= availCash;
+          const canAsk = availFood >= 1;
+          return (
+            <div key={f} className="grid grid-cols-2 gap-1.5 flex-1 min-h-0">
+              <ScrollButton
+                label={`buy ${FOOD_EMOJIS[f]}`}
+                price={bidPrices[f]}
+                onPriceChange={(p) =>
+                  setBidPrices((cur) => ({ ...cur, [f]: p }))
+                }
+                onAction={() => placeOrder(f, "bid")}
+                color={color}
+                side="bid"
+                disabled={disabled || !canBuy}
+              />
+              <ScrollButton
+                label={`ask ${FOOD_EMOJIS[f]}`}
+                price={askPrices[f]}
+                onPriceChange={(p) =>
+                  setAskPrices((cur) => ({ ...cur, [f]: p }))
+                }
+                onAction={() => placeOrder(f, "ask")}
+                color={color}
+                side="ask"
+                disabled={disabled || !canAsk}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -207,8 +248,8 @@ function PlayersStrip({
   totalSeats: number;
 }) {
   return (
-    <div className="card px-2 py-1.5">
-      <div className="flex items-center justify-between mb-1">
+    <div className="card px-2 py-1 shrink-0">
+      <div className="flex items-center justify-between mb-0.5">
         <span className="text-[10px] text-muted uppercase tracking-wider">
           players
         </span>
@@ -224,7 +265,7 @@ function PlayersStrip({
           return (
             <div
               key={p.id}
-              className={`rounded-md border px-1.5 py-1 text-center ${
+              className={`rounded-md border px-1.5 py-0.5 text-center ${
                 dead ? "opacity-40" : ""
               } ${isSelf ? "ring-1 ring-accent" : ""}`}
               style={{
@@ -238,109 +279,12 @@ function PlayersStrip({
               >
                 {isSelf ? selfName : p.name}
               </div>
-              <div className="text-[9px] text-muted mt-0.5">
+              <div className="text-[9px] text-muted leading-none">
                 {p.status === "alive" ? "● alive" : "† dead"}
               </div>
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function FoodCard({
-  food,
-  price,
-  setPrice,
-  book,
-  priv,
-  disabled,
-  onBuy,
-  onSell,
-}: {
-  food: FoodType;
-  price: number;
-  setPrice: (p: number) => void;
-  book: PublicOrderBook | undefined;
-  priv: PrivatePlayerState | null;
-  disabled: boolean;
-  onBuy: () => void;
-  onSell: () => void;
-}) {
-  const color = FOOD_COLORS[food];
-  const bestBid = book?.bids[0]?.pricePerUnit;
-  const bestAsk = book?.asks[0]?.pricePerUnit;
-  const lastTrade = book?.lastTradePrice;
-
-  const availCash = priv?.availableCash ?? 0;
-  const availFood = priv?.availableInventory[food] ?? 0;
-  const myInv = priv?.inventory[food] ?? 0;
-
-  const canBuy = !disabled && price <= availCash;
-  const canSell = !disabled && availFood >= 1;
-
-  return (
-    <div
-      className="rounded-xl border-2 p-2"
-      style={{ background: `${color}14`, borderColor: `${color}55` }}
-    >
-      {/* Header: emoji + name + your inv + market quotes */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl leading-none">{FOOD_EMOJIS[food]}</span>
-          <span className="font-bold" style={{ color }}>
-            {FOOD_DISPLAY_NAMES[food]}
-          </span>
-        </div>
-        <div className="text-[10px] text-muted mono tabular leading-tight text-right">
-          <div>
-            you <span className="text-text font-bold">{myInv}</span>
-          </div>
-          <div>
-            last{" "}
-            <span className="text-accent">
-              {lastTrade != null ? `$${lastTrade}` : "—"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[1fr_auto] gap-2 items-stretch">
-        {/* Left: swipe-to-change price */}
-        <PriceSwipe value={price} min={0} onChange={setPrice} color={color} />
-
-        {/* Right: BUY and SELL stacked */}
-        <div className="flex flex-col gap-1.5 justify-stretch min-w-[100px]">
-          <button
-            type="button"
-            onClick={onBuy}
-            disabled={!canBuy}
-            className="flex-1 rounded-lg font-bold text-base bg-bid text-bg active:bg-bid/80 disabled:opacity-30 disabled:cursor-not-allowed transition py-3"
-          >
-            BUY
-            <div className="text-[10px] font-normal opacity-80">@ ${price}</div>
-          </button>
-          <button
-            type="button"
-            onClick={onSell}
-            disabled={!canSell}
-            className="flex-1 rounded-lg font-bold text-base bg-ask text-bg active:bg-ask/80 disabled:opacity-30 disabled:cursor-not-allowed transition py-3"
-          >
-            SELL
-            <div className="text-[10px] font-normal opacity-80">@ ${price}</div>
-          </button>
-        </div>
-      </div>
-
-      {/* Market reference line at the bottom */}
-      <div className="flex items-center justify-between mt-1.5 text-[10px] mono tabular px-1">
-        <span className="text-bid">
-          best bid {bestBid != null ? `$${bestBid}` : "—"}
-        </span>
-        <span className="text-ask">
-          best ask {bestAsk != null ? `$${bestAsk}` : "—"}
-        </span>
       </div>
     </div>
   );
