@@ -6,12 +6,12 @@ import type {
   PublicTrade,
 } from "../lib/types";
 import {
+  FOOD_COLORS,
   FOOD_EMOJIS,
   FOOD_TYPES,
-  FOOD_COLORS,
 } from "../lib/types";
 
-const RECENT_TICK_WINDOW = 8; // how many ticks of trade history to summarise
+const RECENT_TICK_WINDOW = 8;
 
 interface OpponentBoxProps {
   player: PublicPlayerState;
@@ -20,20 +20,22 @@ interface OpponentBoxProps {
 
 function OpponentBox({ player, deltas }: OpponentBoxProps) {
   const dead = player.status === "dead";
+  const color = player.produces ? FOOD_COLORS[player.produces] : "#7c8390";
+  const bg = dead ? "#13161e" : `${color}1f`;
+  const border = dead ? "#252a36" : `${color}66`;
+
   return (
     <div
-      className={`flex-1 rounded-md border p-2 ${
-        dead ? "opacity-50 border-line" : "border-line bg-elevated/30"
+      className={`flex-1 rounded-md border px-3 py-2 ${
+        dead ? "opacity-50" : ""
       }`}
+      style={{ background: bg, borderColor: border }}
     >
-      <div className="flex items-center gap-1.5 mb-1">
-        {player.produces && (
-          <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ background: FOOD_COLORS[player.produces] }}
-          />
-        )}
-        <span className="text-xs font-medium truncate flex-1">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span
+          className="text-sm font-semibold truncate flex-1"
+          style={{ color }}
+        >
           {player.name}
         </span>
         {player.isBot && (
@@ -41,22 +43,27 @@ function OpponentBox({ player, deltas }: OpponentBoxProps) {
         )}
         {dead && <span className="text-[9px] text-danger">DEAD</span>}
       </div>
-      <div className="flex justify-between gap-1">
+      <div className="flex justify-between gap-2">
         {FOOD_TYPES.map((f) => {
           const d = deltas[f];
+          const isOwn = player.produces === f;
           return (
             <div
               key={f}
               className="flex flex-col items-center text-[10px] mono tabular"
             >
-              <span className="text-sm leading-none">{FOOD_EMOJIS[f]}</span>
+              <span
+                className={`text-base leading-none ${isOwn ? "" : "opacity-80"}`}
+              >
+                {FOOD_EMOJIS[f]}
+              </span>
               <span
                 className={
                   d > 0
                     ? "text-bid font-semibold"
                     : d < 0
                       ? "text-ask font-semibold"
-                      : "text-muted/50"
+                      : "text-muted/40"
                 }
               >
                 {d > 0 ? `+${d}` : d < 0 ? `${d}` : "·"}
@@ -82,7 +89,6 @@ export function OpponentsRow({
 }) {
   const opponents = players.filter((p) => p.id !== selfId);
 
-  // Compute per-opponent, per-food net delta over the recent window.
   const deltas: Record<string, Record<FoodType, number>> = {};
   for (const p of opponents) {
     deltas[p.id] = { A: 0, B: 0, C: 0, D: 0 };
@@ -94,18 +100,16 @@ export function OpponentsRow({
   }
 
   return (
-    <div className="card p-2">
-      <div className="flex gap-2">
-        {opponents.length === 0 ? (
-          <div className="text-xs text-muted italic px-2 py-2">
-            no opponents yet
-          </div>
-        ) : (
-          opponents.map((p) => (
-            <OpponentBox key={p.id} player={p} deltas={deltas[p.id]} />
-          ))
-        )}
-      </div>
+    <div className="flex gap-2">
+      {opponents.length === 0 ? (
+        <div className="text-xs text-muted italic px-2 py-2">
+          no opponents yet
+        </div>
+      ) : (
+        opponents.map((p) => (
+          <OpponentBox key={p.id} player={p} deltas={deltas[p.id]} />
+        ))
+      )}
     </div>
   );
 }

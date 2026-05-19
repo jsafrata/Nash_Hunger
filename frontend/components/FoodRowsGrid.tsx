@@ -52,7 +52,6 @@ export function FoodRowsGrid(props: FoodRowsGridProps) {
     };
   }, []);
 
-  // Global hotkeys: g/v/m/k picks food; c cancels all.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (disabled) return;
@@ -80,39 +79,27 @@ export function FoodRowsGrid(props: FoodRowsGridProps) {
   }, [disabled, socket, roomCode, playerId, setSelectedFood]);
 
   return (
-    <div className="card p-2">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="section-title flex items-center gap-2">
-          <span>Trade</span>
-          {postedFlash > 0 && (
-            <span className="text-[10px] text-bid normal-case tracking-normal">
-              ✓ ×{postedFlash}
-            </span>
-          )}
+    <div className="space-y-1.5 relative">
+      {postedFlash > 0 && (
+        <div className="absolute -top-5 right-1 text-[10px] text-bid pointer-events-none">
+          ✓ posted ×{postedFlash}
         </div>
-        <div className="text-[10px] text-muted">
-          <span className="text-accent">g/v/m/k</span> select ·{" "}
-          <span className="text-accent">c</span> cancel-all
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        {FOOD_TYPES.map((f) => (
-          <FoodRow
-            key={f}
-            food={f}
-            socket={socket}
-            roomCode={roomCode}
-            playerId={playerId}
-            priv={priv}
-            book={orderBooks?.[f]}
-            disabled={disabled}
-            active={f === selectedFood}
-            onActivate={() => setSelectedFood(f)}
-            onPostedFlash={bumpFlash}
-          />
-        ))}
-      </div>
+      )}
+      {FOOD_TYPES.map((f) => (
+        <FoodRow
+          key={f}
+          food={f}
+          socket={socket}
+          roomCode={roomCode}
+          playerId={playerId}
+          priv={priv}
+          book={orderBooks?.[f]}
+          disabled={disabled}
+          active={f === selectedFood}
+          onActivate={() => setSelectedFood(f)}
+          onPostedFlash={bumpFlash}
+        />
+      ))}
     </div>
   );
 }
@@ -137,7 +124,7 @@ function PriceStepper({
           onChange(Math.max(min, value - 1));
         }}
         disabled={disabled || value <= min}
-        className="w-6 rounded text-xs leading-none border border-line hover:bg-elevated/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        className="w-6 rounded text-xs leading-none border border-line bg-bg/40 hover:bg-elevated/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
         aria-label="decrease"
       >
         ▼
@@ -150,7 +137,7 @@ function PriceStepper({
         disabled={disabled}
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => onChange(parseInt(e.target.value || String(min), 10))}
-        className="w-12 text-xs px-1 py-1 text-center"
+        className="w-11 text-xs px-1 py-1 text-center"
       />
       <button
         type="button"
@@ -159,7 +146,7 @@ function PriceStepper({
           onChange(value + 1);
         }}
         disabled={disabled}
-        className="w-6 rounded text-xs leading-none border border-line hover:bg-elevated/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        className="w-6 rounded text-xs leading-none border border-line bg-bg/40 hover:bg-elevated/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
         aria-label="increase"
       >
         ▲
@@ -168,30 +155,31 @@ function PriceStepper({
   );
 }
 
-function PriceBadge({
-  value,
-  side,
+// Figgie-style pill button: light pill, dark text, no per-button color.
+function PillButton({
+  label,
+  onClick,
+  disabled,
+  title,
 }: {
-  value: number | null | undefined;
-  side: "bid" | "ask";
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
 }) {
-  if (value === null || value === undefined) {
-    return (
-      <span className="inline-flex items-center justify-center w-12 h-7 rounded border border-line/40 text-[11px] text-muted/40 mono">
-        —
-      </span>
-    );
-  }
-  const cls =
-    side === "bid"
-      ? "border-bid/40 bg-bid/10 text-bid"
-      : "border-ask/40 bg-ask/10 text-ask";
   return (
-    <span
-      className={`inline-flex items-center justify-center w-12 h-7 rounded border text-xs font-semibold mono tabular ${cls}`}
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      title={title}
+      className="px-4 py-1.5 rounded-full text-xs font-semibold bg-text text-bg hover:bg-text/90 disabled:opacity-30 disabled:cursor-not-allowed transition"
     >
-      ${value}
-    </span>
+      {label}
+    </button>
   );
 }
 
@@ -218,13 +206,9 @@ function FoodRow({
   onActivate: () => void;
   onPostedFlash: () => void;
 }) {
-  // Default starting price = last trade, else 5
   const initialPrice = book?.lastTradePrice ?? 5;
   const [bidPrice, setBidPrice] = useState<number>(initialPrice);
   const [askPrice, setAskPrice] = useState<number>(initialPrice);
-
-  // If we still have the default value AND a new last-trade comes in, snap to it
-  // so steppers reflect a sensible anchor early in the game.
   const priceInitialisedRef = useRef(false);
   useEffect(() => {
     if (priceInitialisedRef.current) return;
@@ -241,90 +225,91 @@ function FoodRow({
 
   const availCash = priv?.availableCash ?? 0;
   const availFood = priv?.availableInventory[food] ?? 0;
-  const myInventory = priv?.inventory[food] ?? 0;
 
-  const canBuy = !disabled && bidPrice <= availCash;
-  const canAsk = !disabled && availFood >= 1;
+  // Limit orders (BID / OFFER) — post at user's set price.
+  const canPostBid = !disabled && bidPrice <= availCash;
+  const canPostOffer = !disabled && availFood >= 1;
 
-  const postBuy = () => {
-    if (!socket || !canBuy) return;
+  // Market orders (SELL hits best bid; BUY lifts best ask).
+  const canMarketSell =
+    !disabled && bestBid !== undefined && availFood >= 1;
+  const canMarketBuy =
+    !disabled && bestAsk !== undefined && bestAsk <= availCash;
+
+  const emit = (
+    side: "bid" | "ask",
+    price: number,
+  ) => {
+    if (!socket) return;
     socket.emit("post_order", {
       roomCode,
       playerId,
-      side: "bid",
+      side,
       foodType: food,
       quantity: 1,
-      pricePerUnit: bidPrice,
+      pricePerUnit: price,
     });
     onPostedFlash();
   };
 
-  const postAsk = () => {
-    if (!socket || !canAsk) return;
-    socket.emit("post_order", {
-      roomCode,
-      playerId,
-      side: "ask",
-      foodType: food,
-      quantity: 1,
-      pricePerUnit: askPrice,
-    });
-    onPostedFlash();
-  };
-
-  // Faint tint of the row in the food's color
   const tint = FOOD_COLORS[food];
 
   return (
     <div
-      className={`rounded-md border ${
-        active ? "border-accent/60" : "border-line"
+      className={`rounded-md border transition ${
+        active ? "border-accent/70" : ""
       }`}
-      style={{ background: `${tint}10` }}
+      style={{
+        background: `${tint}1c`,
+        borderColor: active ? undefined : `${tint}55`,
+      }}
       onClick={onActivate}
     >
-      <div className="flex items-center gap-2 px-2 py-1.5">
-        {/* Far left: your inventory of this food */}
-        <div
-          className="flex items-center gap-1 px-2 py-1 rounded-md border border-line bg-bg/40 mono tabular text-xs min-w-[44px] justify-center"
-          title={`You hold ${myInventory} ${FOOD_DISPLAY_NAMES[food]}`}
-        >
-          <span className="text-muted">you</span>
-          <span className="font-semibold">{myInventory}</span>
+      <div className="flex items-center gap-3 px-3 py-2">
+        {/* Left action group: best-bid label above + [SELL][BID][stepper] */}
+        <div className="flex flex-col items-start gap-0.5">
+          <div className="text-[10px] text-bid mono tabular pl-7 leading-none h-3">
+            {bestBid !== undefined ? `$${bestBid}` : ""}
+          </div>
+          <div className="flex items-center gap-1">
+            <PillButton
+              label="SELL"
+              onClick={() => bestBid !== undefined && emit("ask", bestBid)}
+              disabled={!canMarketSell}
+              title={
+                bestBid === undefined
+                  ? "no bid to sell into"
+                  : availFood < 1
+                    ? `you have no ${FOOD_DISPLAY_NAMES[food]}`
+                    : `sell 1 ${FOOD_DISPLAY_NAMES[food]} at best bid ($${bestBid})`
+              }
+            />
+            <PillButton
+              label="BID"
+              onClick={() => emit("bid", bidPrice)}
+              disabled={!canPostBid}
+              title={`Post a bid for 1 ${FOOD_DISPLAY_NAMES[food]} at $${bidPrice}`}
+            />
+            <PriceStepper
+              value={bidPrice}
+              min={0}
+              onChange={setBidPrice}
+              disabled={disabled}
+            />
+          </div>
         </div>
 
-        {/* Bid side: best bid badge + my bid stepper + BUY button */}
-        <PriceBadge value={bestBid} side="bid" />
-        <PriceStepper
-          value={bidPrice}
-          min={0}
-          onChange={setBidPrice}
-          disabled={disabled}
-        />
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            postBuy();
-          }}
-          disabled={!canBuy}
-          className="px-3 py-1.5 rounded text-xs font-semibold bg-bid/20 border border-bid/40 text-bid hover:bg-bid/30 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          title={`Post a bid for 1 ${FOOD_DISPLAY_NAMES[food]} at $${bidPrice}`}
-        >
-          buy
-        </button>
-
-        {/* Center: food emoji + name + last trade */}
+        {/* Center: emoji + name + last trade + hotkey */}
         <div className="flex-1 flex items-center justify-center gap-2">
-          <span className="text-xl leading-none">{FOOD_EMOJIS[food]}</span>
+          <span className="text-2xl leading-none">{FOOD_EMOJIS[food]}</span>
           <div className="flex flex-col items-start">
             <span
-              className="text-sm font-semibold"
+              className="text-sm font-bold leading-tight"
               style={{ color: tint }}
             >
               {FOOD_DISPLAY_NAMES[food]}
             </span>
-            <span className="text-[10px] text-muted mono">
+            <span className="text-[10px] text-muted mono leading-tight">
               last{" "}
               <span className="text-accent">
                 {lastTrade !== null && lastTrade !== undefined
@@ -338,34 +323,37 @@ function FoodRow({
           </span>
         </div>
 
-        {/* Ask side: ASK button + my ask stepper + best ask badge */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            postAsk();
-          }}
-          disabled={!canAsk}
-          className="px-3 py-1.5 rounded text-xs font-semibold bg-ask/20 border border-ask/40 text-ask hover:bg-ask/30 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          title={`Post an ask for 1 ${FOOD_DISPLAY_NAMES[food]} at $${askPrice}`}
-        >
-          ask
-        </button>
-        <PriceStepper
-          value={askPrice}
-          min={0}
-          onChange={setAskPrice}
-          disabled={disabled}
-        />
-        <PriceBadge value={bestAsk} side="ask" />
-
-        {/* Far right: your inventory again (mirror, for symmetry like figgie) */}
-        <div
-          className="flex items-center gap-1 px-2 py-1 rounded-md border border-line bg-bg/40 mono tabular text-xs min-w-[44px] justify-center"
-          title={`You hold ${myInventory} ${FOOD_DISPLAY_NAMES[food]}`}
-        >
-          <span className="font-semibold">{myInventory}</span>
-          <span className="text-muted">you</span>
+        {/* Right action group: best-ask label above + [stepper][OFFER][BUY] */}
+        <div className="flex flex-col items-end gap-0.5">
+          <div className="text-[10px] text-ask mono tabular pr-7 leading-none h-3">
+            {bestAsk !== undefined ? `$${bestAsk}` : ""}
+          </div>
+          <div className="flex items-center gap-1">
+            <PriceStepper
+              value={askPrice}
+              min={0}
+              onChange={setAskPrice}
+              disabled={disabled}
+            />
+            <PillButton
+              label="OFFER"
+              onClick={() => emit("ask", askPrice)}
+              disabled={!canPostOffer}
+              title={`Post an ask for 1 ${FOOD_DISPLAY_NAMES[food]} at $${askPrice}`}
+            />
+            <PillButton
+              label="BUY"
+              onClick={() => bestAsk !== undefined && emit("bid", bestAsk)}
+              disabled={!canMarketBuy}
+              title={
+                bestAsk === undefined
+                  ? "no ask to lift"
+                  : bestAsk > availCash
+                    ? `need $${bestAsk}, have $${availCash}`
+                    : `buy 1 ${FOOD_DISPLAY_NAMES[food]} at best ask ($${bestAsk})`
+              }
+            />
+          </div>
         </div>
       </div>
     </div>
