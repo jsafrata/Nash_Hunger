@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBackendUrl, getSocket, saveSession } from "../lib/socket";
@@ -168,6 +169,13 @@ export default function HomePage() {
             </div>
           )}
         </div>
+
+        <Link
+          href="/tutorial"
+          className="btn w-full mt-3 text-center block"
+        >
+          Read the tutorial
+        </Link>
 
         <div className="mt-6 text-xs text-muted leading-relaxed text-center px-4">
           Don't have 3 friends? Create a game and click{" "}
