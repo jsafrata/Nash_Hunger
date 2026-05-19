@@ -50,20 +50,24 @@ export function TimerBar({
           <span className="font-bold text-accent text-lg mono">{roomCode}</span>
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="section-title">Time</span>
-          <span className={`font-bold text-2xl tabular mono ${timeColor}`}>
-            {phase === "lobby" ? "—:—" : fmtTime(remaining)}
-          </span>
-        </div>
+        {phase !== "lobby" && (
+          <div className="flex items-baseline gap-2">
+            <span className="section-title">Time</span>
+            <span className={`font-bold text-2xl tabular mono ${timeColor}`}>
+              {fmtTime(remaining)}
+            </span>
+          </div>
+        )}
 
-        <div className="flex items-baseline gap-2">
-          <span className="section-title">Alive</span>
-          <span className="font-bold text-lg mono">
-            {alive}
-            <span className="text-muted">/{seats}</span>
-          </span>
-        </div>
+        {phase !== "lobby" && (
+          <div className="flex items-baseline gap-2">
+            <span className="section-title">Alive</span>
+            <span className="font-bold text-lg mono">
+              {alive}
+              <span className="text-muted">/{seats}</span>
+            </span>
+          </div>
+        )}
 
         <div className="ml-auto flex items-center gap-2 text-xs text-muted">
           <span
