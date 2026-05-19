@@ -28,38 +28,62 @@ export function PlayerHandBanner({
         {name}
       </div>
 
-      <div className="flex gap-2 flex-1 justify-center">
+      <div className="flex gap-2 flex-1 justify-center items-center">
         {FOOD_TYPES.map((f) => {
           const total = priv.inventory[f];
           const reserved = priv.reservedInventory[f];
           const isProducer = priv.produces === f;
           const color = FOOD_COLORS[f];
           return (
-            <div
-              key={f}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border ${
-                isProducer ? "ring-1 ring-accent/60" : ""
-              }`}
-              style={{
-                background: `${color}25`,
-                borderColor: `${color}55`,
-              }}
-              title={`${FOOD_DISPLAY_NAMES[f]}${
-                isProducer ? " (your production)" : ""
-              }${reserved > 0 ? ` · ${reserved} reserved in asks` : ""}`}
-            >
-              <span className="text-lg leading-none">{FOOD_EMOJIS[f]}</span>
-              <span
-                className="font-bold mono tabular text-lg"
-                style={{ color }}
-              >
-                {total}
-              </span>
-              {reserved > 0 && (
-                <span className="text-[10px] text-muted mono">
-                  −{reserved}
-                </span>
+            <div key={f} className="relative">
+              {isProducer && (
+                <div
+                  className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-px rounded-full text-bg whitespace-nowrap z-10"
+                  style={{ background: color }}
+                >
+                  you make
+                </div>
               )}
+              <div
+                className={`flex items-center gap-1.5 rounded-md border transition ${
+                  isProducer
+                    ? "px-3.5 py-1.5 ring-2 shadow-lg"
+                    : "px-2.5 py-1"
+                }`}
+                style={{
+                  background: isProducer
+                    ? `${color}55`
+                    : `${color}1a`,
+                  borderColor: isProducer ? color : `${color}40`,
+                  ...(isProducer
+                    ? ({ "--tw-ring-color": color } as React.CSSProperties)
+                    : {}),
+                }}
+                title={`${FOOD_DISPLAY_NAMES[f]}${
+                  isProducer ? " (your production · +2/cycle)" : ""
+                }${reserved > 0 ? ` · ${reserved} reserved in asks` : ""}`}
+              >
+                <span
+                  className={`leading-none ${
+                    isProducer ? "text-2xl" : "text-lg"
+                  }`}
+                >
+                  {FOOD_EMOJIS[f]}
+                </span>
+                <span
+                  className={`font-bold mono tabular ${
+                    isProducer ? "text-xl" : "text-lg"
+                  }`}
+                  style={{ color }}
+                >
+                  {total}
+                </span>
+                {reserved > 0 && (
+                  <span className="text-[10px] text-muted mono">
+                    −{reserved}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}
