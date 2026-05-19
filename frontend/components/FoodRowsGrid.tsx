@@ -280,7 +280,7 @@ function FoodRow({
           </div>
           <div className="flex items-center gap-1">
             <PillButton
-              label="SELL"
+              label="ASK"
               onClick={() => bestBid !== undefined && emit("ask", bestBid)}
               disabled={!canMarketSell}
               title={
@@ -292,7 +292,7 @@ function FoodRow({
               }
             />
             <PillButton
-              label="buy"
+              label="BUY"
               onClick={() => emit("bid", bidPrice)}
               disabled={!canPostBid}
               title={`Post a bid for 1 ${FOOD_DISPLAY_NAMES[food]} at $${bidPrice}`}
@@ -350,7 +350,7 @@ function FoodRow({
               disabled={disabled}
             />
             <PillButton
-              label="ask"
+              label="ASK"
               onClick={() => emit("ask", askPrice)}
               disabled={!canPostOffer}
               title={`Post an ask for 1 ${FOOD_DISPLAY_NAMES[food]} at $${askPrice}`}
