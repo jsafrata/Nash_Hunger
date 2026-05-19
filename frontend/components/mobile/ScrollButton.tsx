@@ -1,14 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
-const PRICE_MIN = 0;
-const PRICE_MAX = 20;
+const PIXELS_PER_STEP = 16;
 
 /**
- * A "ScrollButton" — a single horizontal box. Tap the LEFT label area to place
- * an order at the current slider price. Drag the RIGHT slider to change the
- * price. The slider has visible bounds ($PRICE_MIN at left, $PRICE_MAX at right).
+ * A ScrollButton: tap the LEFT label to place an order at the current price.
+ * Swipe vertically on the RIGHT area to change the price — swipe up to
+ * increase, swipe down to decrease, one integer step per PIXELS_PER_STEP of
+ * finger travel.
  */
 export function ScrollButton({
   label,
@@ -27,34 +27,47 @@ export function ScrollButton({
   side: "bid" | "ask";
   disabled?: boolean;
 }) {
-  const trackRef = useRef<HTMLDivElement>(null);
+  const startYRef = useRef<number | null>(null);
+  const baseRef = useRef<number>(price);
+  const [dragging, setDragging] = useState(false);
 
-  const updateFromX = (clientX: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const rect = track.getBoundingClientRect();
-    const pct = Math.max(
-      0,
-      Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)),
-    );
-    const v = Math.round(PRICE_MIN + pct * (PRICE_MAX - PRICE_MIN));
-    onPriceChange(v);
+  const startDrag = (y: number) => {
+    startYRef.current = y;
+    baseRef.current = price;
+    setDragging(true);
+  };
+  const moveDrag = (y: number) => {
+    if (startYRef.current === null) return;
+    const dy = startYRef.current - y; // up = positive
+    const steps = Math.round(dy / PIXELS_PER_STEP);
+    const next = Math.max(0, baseRef.current + steps);
+    if (next !== price) onPriceChange(next);
+  };
+  const endDrag = () => {
+    startYRef.current = null;
+    setDragging(false);
   };
 
-  // Slider drag handlers (stop propagation so they don't trigger the order button).
-  const onSliderTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = (e: React.TouchEvent) => {
     e.stopPropagation();
-    updateFromX(e.touches[0].clientX);
+    startDrag(e.touches[0].clientY);
   };
-  const onSliderTouchMove = (e: React.TouchEvent) => {
+  const onTouchMove = (e: React.TouchEvent) => {
     e.stopPropagation();
-    updateFromX(e.touches[0].clientX);
+    moveDrag(e.touches[0].clientY);
   };
-  const onSliderMouseDown = (e: React.MouseEvent) => {
+  const onTouchEnd = (e: React.TouchEvent) => {
     e.stopPropagation();
-    updateFromX(e.clientX);
-    const onMove = (ev: MouseEvent) => updateFromX(ev.clientX);
+    endDrag();
+  };
+
+  // Mouse fallback for desktop testing.
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    startDrag(e.clientY);
+    const onMove = (ev: MouseEvent) => moveDrag(ev.clientY);
     const onUp = () => {
+      endDrag();
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -62,18 +75,17 @@ export function ScrollButton({
     window.addEventListener("mouseup", onUp);
   };
 
-  const pct = (price - PRICE_MIN) / (PRICE_MAX - PRICE_MIN);
   const actionBg = side === "bid" ? "bg-bid/25" : "bg-ask/25";
   const actionFg = side === "bid" ? "text-bid" : "text-ask";
 
   return (
     <div
-      className={`flex items-stretch rounded-lg border overflow-hidden ${
+      className={`flex items-stretch rounded-md border overflow-hidden h-full ${
         disabled ? "opacity-30" : ""
       }`}
       style={{ borderColor: `${color}66`, background: `${color}10` }}
     >
-      {/* LEFT: tap target for placing the order */}
+      {/* LEFT: tap-to-order */}
       <button
         type="button"
         onClick={(e) => {
@@ -81,55 +93,40 @@ export function ScrollButton({
           if (!disabled) onAction();
         }}
         disabled={disabled}
-        className={`min-w-[78px] px-2 py-2 ${actionBg} ${actionFg} font-bold text-sm leading-none flex flex-col items-center justify-center gap-0.5 active:brightness-110 disabled:cursor-not-allowed`}
+        className={`flex-1 px-2 ${actionBg} ${actionFg} font-bold text-sm leading-tight flex flex-col items-center justify-center gap-0.5 active:brightness-110 disabled:cursor-not-allowed`}
         title={`${label} at $${price}`}
       >
         <span>{label}</span>
         <span className="text-[10px] opacity-80 mono">${price}</span>
       </button>
 
-      {/* RIGHT: bounded slider for setting the price */}
+      {/* RIGHT: vertical-swipe area for the price */}
       <div
-        className="flex-1 px-2 py-2 flex flex-col justify-center select-none"
-        onTouchStart={onSliderTouchStart}
-        onTouchMove={onSliderTouchMove}
-        onMouseDown={onSliderMouseDown}
-        style={{ touchAction: "none" }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+        onMouseDown={onMouseDown}
+        style={{
+          touchAction: "none",
+          userSelect: "none",
+          background: dragging ? `${color}44` : `${color}1f`,
+          borderColor: `${color}66`,
+        }}
+        className={`w-12 flex flex-col items-center justify-center select-none border-l transition ${
+          dragging ? "scale-105" : ""
+        }`}
+        aria-label="Swipe vertically to change price"
       >
-        <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-muted mono w-3 text-right">
-            ${PRICE_MIN}
-          </span>
-          <div
-            ref={trackRef}
-            className="relative flex-1 h-2 rounded-full bg-line"
-          >
-            {/* filled portion */}
-            <div
-              className="absolute inset-y-0 left-0 rounded-full"
-              style={{
-                width: `${pct * 100}%`,
-                background: color,
-                opacity: 0.5,
-              }}
-            />
-            {/* thumb */}
-            <div
-              className="absolute top-1/2 w-4 h-4 rounded-full border-2 border-bg shadow"
-              style={{
-                background: color,
-                left: `${pct * 100}%`,
-                transform: "translate(-50%, -50%)",
-              }}
-            />
-          </div>
-          <span className="text-[9px] text-muted mono w-5">
-            ${PRICE_MAX}
-          </span>
-        </div>
+        <span className="text-[9px] text-muted/70 leading-none">▲</span>
+        <span
+          className="mono tabular font-bold text-base leading-none my-0.5"
+          style={{ color }}
+        >
+          ${price}
+        </span>
+        <span className="text-[9px] text-muted/70 leading-none">▼</span>
       </div>
     </div>
   );
 }
-
-export const SLIDER_MAX_PRICE = PRICE_MAX;

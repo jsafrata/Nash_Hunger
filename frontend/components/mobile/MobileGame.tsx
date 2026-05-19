@@ -190,7 +190,7 @@ export function MobileGame({
       <BidAskLastTable orderBooks={orderBooks} />
 
       {/* 5. 4×2 grid of ScrollButtons (buy on left, ask on right per row) */}
-      <div className="relative flex-1 flex flex-col gap-1.5 min-h-0">
+      <div className="relative flex flex-col gap-1.5 shrink-0">
         {postedFlash > 0 && (
           <div className="absolute -top-1 right-1 text-[10px] text-bid pointer-events-none z-10">
             ✓ ×{postedFlash}
@@ -203,7 +203,7 @@ export function MobileGame({
           const canBuy = bidPrices[f] <= availCash;
           const canAsk = availFood >= 1;
           return (
-            <div key={f} className="grid grid-cols-2 gap-1.5 flex-1 min-h-0">
+            <div key={f} className="grid grid-cols-2 gap-1.5 h-12">
               <ScrollButton
                 label={`buy ${FOOD_EMOJIS[f]}`}
                 price={bidPrices[f]}
