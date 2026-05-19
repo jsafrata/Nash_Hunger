@@ -226,9 +226,15 @@ function FoodRow({
   const availCash = priv?.availableCash ?? 0;
   const availFood = priv?.availableInventory[food] ?? 0;
 
-  // Limit orders only: "buy" posts a bid; "ask" posts an ask.
+  // Limit orders ("buy" posts a bid; "ask" posts an ask).
   const canPostBid = !disabled && bidPrice <= availCash;
   const canPostOffer = !disabled && availFood >= 1;
+
+  // Market orders (SELL hits best bid; BUY lifts best ask).
+  const canMarketSell =
+    !disabled && bestBid !== undefined && availFood >= 1;
+  const canMarketBuy =
+    !disabled && bestAsk !== undefined && bestAsk <= availCash;
 
   const emit = (
     side: "bid" | "ask",
@@ -260,26 +266,44 @@ function FoodRow({
       onClick={onActivate}
     >
       <div className="flex items-center gap-3 px-3 py-2">
-        {/* Left action group: prominent best-bid + [buy][stepper] */}
-        <div className="flex items-center gap-3">
+        {/* Left action group: big $bid above SELL, then [SELL][buy][stepper] */}
+        <div className="flex flex-col items-start gap-1">
           <div
-            className="mono tabular font-bold text-2xl text-bid w-14 text-right leading-none"
-            title="Best bid"
+            className="mono tabular font-bold text-2xl text-bid leading-none w-16 text-center"
+            title="Best bid · click SELL to take it"
           >
-            {bestBid !== undefined ? `$${bestBid}` : <span className="text-muted/40">—</span>}
+            {bestBid !== undefined ? (
+              `$${bestBid}`
+            ) : (
+              <span className="text-muted/40">—</span>
+            )}
           </div>
-          <PillButton
-            label="buy"
-            onClick={() => emit("bid", bidPrice)}
-            disabled={!canPostBid}
-            title={`Post a bid for 1 ${FOOD_DISPLAY_NAMES[food]} at $${bidPrice}`}
-          />
-          <PriceStepper
-            value={bidPrice}
-            min={0}
-            onChange={setBidPrice}
-            disabled={disabled}
-          />
+          <div className="flex items-center gap-1">
+            <PillButton
+              label="SELL"
+              onClick={() => bestBid !== undefined && emit("ask", bestBid)}
+              disabled={!canMarketSell}
+              title={
+                bestBid === undefined
+                  ? "no bid to sell into"
+                  : availFood < 1
+                    ? `you have no ${FOOD_DISPLAY_NAMES[food]}`
+                    : `sell 1 ${FOOD_DISPLAY_NAMES[food]} at best bid ($${bestBid})`
+              }
+            />
+            <PillButton
+              label="buy"
+              onClick={() => emit("bid", bidPrice)}
+              disabled={!canPostBid}
+              title={`Post a bid for 1 ${FOOD_DISPLAY_NAMES[food]} at $${bidPrice}`}
+            />
+            <PriceStepper
+              value={bidPrice}
+              min={0}
+              onChange={setBidPrice}
+              disabled={disabled}
+            />
+          </div>
         </div>
 
         {/* Center: emoji + name + last trade + hotkey */}
@@ -306,25 +330,43 @@ function FoodRow({
           </span>
         </div>
 
-        {/* Right action group: [stepper][ask] + prominent best-ask */}
-        <div className="flex items-center gap-3">
-          <PriceStepper
-            value={askPrice}
-            min={0}
-            onChange={setAskPrice}
-            disabled={disabled}
-          />
-          <PillButton
-            label="ask"
-            onClick={() => emit("ask", askPrice)}
-            disabled={!canPostOffer}
-            title={`Post an ask for 1 ${FOOD_DISPLAY_NAMES[food]} at $${askPrice}`}
-          />
+        {/* Right action group: big $ask above BUY, then [stepper][ask][BUY] */}
+        <div className="flex flex-col items-end gap-1">
           <div
-            className="mono tabular font-bold text-2xl text-ask w-14 leading-none"
-            title="Best ask"
+            className="mono tabular font-bold text-2xl text-ask leading-none w-16 text-center"
+            title="Best ask · click BUY to take it"
           >
-            {bestAsk !== undefined ? `$${bestAsk}` : <span className="text-muted/40">—</span>}
+            {bestAsk !== undefined ? (
+              `$${bestAsk}`
+            ) : (
+              <span className="text-muted/40">—</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <PriceStepper
+              value={askPrice}
+              min={0}
+              onChange={setAskPrice}
+              disabled={disabled}
+            />
+            <PillButton
+              label="ask"
+              onClick={() => emit("ask", askPrice)}
+              disabled={!canPostOffer}
+              title={`Post an ask for 1 ${FOOD_DISPLAY_NAMES[food]} at $${askPrice}`}
+            />
+            <PillButton
+              label="BUY"
+              onClick={() => bestAsk !== undefined && emit("bid", bestAsk)}
+              disabled={!canMarketBuy}
+              title={
+                bestAsk === undefined
+                  ? "no ask to lift"
+                  : bestAsk > availCash
+                    ? `need $${bestAsk}, have $${availCash}`
+                    : `buy 1 ${FOOD_DISPLAY_NAMES[food]} at best ask ($${bestAsk})`
+              }
+            />
           </div>
         </div>
       </div>
