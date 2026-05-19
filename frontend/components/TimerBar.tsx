@@ -65,11 +65,6 @@ export function TimerBar({
           </span>
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="section-title">Phase</span>
-          <span className="capitalize font-medium">{phase}</span>
-        </div>
-
         <div className="ml-auto flex items-center gap-2 text-xs text-muted">
           <span
             className={`inline-block w-2 h-2 rounded-full ${
