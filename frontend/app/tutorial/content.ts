@@ -111,15 +111,15 @@ export const tutorialContent: TutorialPageContent = {
     guideItems: [
       {
         label: "Time",
-        description: "Shows how close the next survival checks and endgame pressure are.",
+        description: "Shows the time remaining in the round.",
       },
       {
         label: "Cash",
-        description: "Tells you what you can still spend before locked bids reduce your options.",
+        description: "Shows how much cash you can spend on bidding for food.",
       },
       {
         label: "Your food",
-        description: "Shows what you currently hold, including the food you produce yourself.",
+        description: "Shows what you currently hold, including the food you produce yourself. The food you produce will be highlighted.",
       },
       {
         label: "Players",
