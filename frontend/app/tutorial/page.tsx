@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { tutorialContent, type TutorialMedia } from "./content";
+import { tutorialContent } from "./content";
 
 type MobileHighlightKey =
   | "time"
@@ -15,7 +15,19 @@ type MobileHighlightKey =
   | "ask"
   | null;
 
-type DesktopHighlightKey = "open-orders" | "trade-history" | "event-log" | null;
+type DesktopHighlightKey =
+  | "time"
+  | "cash"
+  | "food"
+  | "players"
+  | "prices"
+  | "scroll"
+  | "buy"
+  | "ask"
+  | "open-orders"
+  | "trade-history"
+  | "event-log"
+  | null;
 
 function highlightClass(active: boolean) {
   return active
@@ -87,33 +99,6 @@ function AnnotationHotspot({
   );
 }
 
-function MediaSlot({ media }: { media: TutorialMedia }) {
-  if (media.src) {
-    return (
-      <div className="min-h-[260px] overflow-hidden rounded-xl border border-line bg-[#0f131b]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={media.src}
-          alt={media.alt}
-          className="h-full w-full object-cover"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative flex min-h-[260px] items-center justify-center overflow-hidden rounded-xl border border-dashed border-line bg-[#0f131b] p-6">
-      <div className="absolute left-3.5 top-3.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-accent">
-        {media.label}
-      </div>
-      <div className="max-w-md text-center space-y-2">
-        <div className="text-lg font-semibold text-text">{media.label}</div>
-        <p className="text-sm leading-relaxed text-muted">{media.placeholder}</p>
-      </div>
-    </div>
-  );
-}
-
 function MobileButtonMock({
   label,
   side,
@@ -154,6 +139,24 @@ function MobileButtonMock({
         </span>
         <span className={`text-[8px] ${highlightStepper ? "text-accent" : "text-muted"}`}>▼</span>
       </div>
+    </div>
+  );
+}
+
+function DesktopPillMock({
+  label,
+  light = true,
+}: {
+  label: string;
+  light?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-full px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+        light ? "bg-[#e8eaf0] text-[#0a0c11]" : "bg-[#0d1219] text-text"
+      }`}
+    >
+      {label}
     </div>
   );
 }
@@ -287,6 +290,13 @@ function MobilePhoneShell({ activeKey }: { activeKey: MobileHighlightKey }) {
 }
 
 function DesktopScreenShell({ activeKey }: { activeKey: DesktopHighlightKey }) {
+  const marketRows = [
+    { food: "🌾 Grain", bid: "$5", last: "$6", ask: "$7", hotkey: "[g]" },
+    { food: "🥬 Veggie", bid: "$4", last: "$5", ask: "$6", hotkey: "[v]" },
+    { food: "🥩 Meat", bid: "$8", last: "$9", ask: "$10", hotkey: "[m]" },
+    { food: "🥛 Milk", bid: "$3", last: "$4", ask: "$5", hotkey: "[k]" },
+  ];
+  const opponents = ["Ana +Grain", "Bot +Veggie", "Kai -Meat"];
   const desktopPanels = [
     {
       title: "Open orders",
@@ -303,50 +313,278 @@ function DesktopScreenShell({ activeKey }: { activeKey: DesktopHighlightKey }) {
   ];
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-line bg-[#070a10] p-4 shadow-[0_18px_35px_rgba(0,0,0,0.35)]">
-      <div className="mb-4 grid gap-3 rounded-2xl border border-line/80 bg-[#121925] p-4 md:grid-cols-[1.2fr_0.8fr_auto]">
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-accent">
-            Desktop feature preview
+    <div className="overflow-hidden rounded-[28px] border border-line bg-[#070a10] p-4 shadow-[0_18px_35px_rgba(0,0,0,0.35)]">
+      <div className="space-y-3">
+        <div className="card px-5 py-3">
+          <div className="flex items-center gap-4">
+            <div className="text-base font-bold tracking-tight text-accent">
+              Nash Hunger
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                Room
+              </span>
+              <span className="mono text-lg font-bold text-accent">ABCDE</span>
+            </div>
+            <div
+              className={`flex items-baseline gap-2 rounded-lg px-2 py-1 transition ${highlightClass(
+                activeKey === "time",
+              )}`}
+            >
+              <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                Time
+              </span>
+              <span className="mono text-2xl font-bold text-text">8:24</span>
+            </div>
+            <div
+              className={`flex items-baseline gap-2 rounded-lg px-2 py-1 transition ${highlightClass(
+                activeKey === "players",
+              )}`}
+            >
+              <span className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                Alive
+              </span>
+              <span className="mono text-lg font-bold text-text">3/4</span>
+            </div>
+            <div className="ml-auto flex items-center gap-2 text-xs text-muted">
+              <span className="inline-block h-2 w-2 rounded-full bg-bid" />
+              connected
+            </div>
           </div>
-          <h3 className="mt-2 text-xl font-bold tracking-tight text-text">
-            Read the market without leaving the board
-          </h3>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-line">
+            <div className="h-full w-[84%] bg-accent" />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-lg bg-[#0d1219] px-3 py-2 text-text">ROOM ABCDE</div>
-          <div className="rounded-lg bg-[#0d1219] px-3 py-2 text-accent">2:11 left</div>
-        </div>
-        <div className="rounded-lg bg-[#0d1219] px-3 py-2 text-sm text-text">
-          3 players alive
-        </div>
-      </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        {desktopPanels.map((panel) => (
+        <div className="card flex items-center gap-6 px-4 py-3">
+          <div className="min-w-[100px] font-semibold text-accent">You</div>
           <div
-            key={panel.title}
-            className={`rounded-2xl border border-line/80 bg-[#121925] p-4 transition ${highlightClass(
-              (panel.title === "Open orders" && activeKey === "open-orders") ||
-                (panel.title === "Trade history" && activeKey === "trade-history") ||
-                (panel.title === "Event log" && activeKey === "event-log"),
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-2 py-1 transition ${highlightClass(
+              activeKey === "food",
             )}`}
           >
-            <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
-              {panel.title}
+            {["🌾 24", "🥬 18", "🥩 12", "🥛 9"].map((item, index) => (
+              <div
+                key={item}
+                className={`rounded-md border ${
+                  index === 0
+                    ? "border-accent bg-accent/15 px-3.5 py-1.5 shadow-lg"
+                    : "border-line bg-[#121925] px-2.5 py-1"
+                }`}
+              >
+                <span className="text-sm font-bold text-text">{item}</span>
+              </div>
+            ))}
+          </div>
+          <div
+            className={`min-w-[100px] rounded-lg px-2 py-1 text-right transition ${highlightClass(
+              activeKey === "cash",
+            )}`}
+          >
+            <div className="mono text-2xl font-bold text-accent">$100</div>
+            <div className="mono text-[10px] text-muted">$84 avail</div>
+          </div>
+        </div>
+
+        <div
+          className={`card flex items-center gap-2 px-3 py-2 transition ${highlightClass(
+            activeKey === "players",
+          )}`}
+        >
+          {opponents.map((item) => (
+            <div
+              key={item}
+              className="flex-1 rounded-md border border-line bg-[#121925] px-3 py-2 text-sm text-text"
+            >
+              {item}
             </div>
-            <div className="space-y-2">
-              {panel.items.map((item) => (
+          ))}
+        </div>
+
+        <div className="grid grid-cols-12 gap-3">
+          <div className="col-span-8 space-y-3">
+            <div className="space-y-1.5">
+              {marketRows.map((row) => (
                 <div
-                  key={item}
-                  className="rounded-xl bg-[#0d1219] px-3 py-2 text-sm text-text"
+                  key={row.food}
+                  className="rounded-md border border-line/70 bg-[#121925]"
                 >
-                  {item}
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <div className="flex flex-col items-start gap-1">
+                      <div
+                        className={`mono w-16 rounded-md px-1 py-0.5 text-center text-2xl font-bold leading-none text-bid transition ${highlightClass(
+                          activeKey === "prices",
+                        )}`}
+                      >
+                        {row.bid}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div
+                          className={`transition ${highlightClass(
+                            activeKey === "ask",
+                          )}`}
+                        >
+                          <DesktopPillMock label="ASK" />
+                        </div>
+                        <div
+                          className={`transition ${highlightClass(
+                            activeKey === "buy",
+                          )}`}
+                        >
+                          <DesktopPillMock label="BUY" />
+                        </div>
+                        <div
+                          className={`flex items-stretch gap-0.5 rounded-md transition ${highlightClass(
+                            activeKey === "scroll",
+                          )}`}
+                        >
+                          <div className="w-6 rounded border border-line bg-bg/40 text-center text-xs leading-7 text-muted">
+                            ▼
+                          </div>
+                          <div className="mono w-11 rounded border border-line bg-[#0a0c11] px-1 py-1 text-center text-xs text-text">
+                            5
+                          </div>
+                          <div className="w-6 rounded border border-line bg-bg/40 text-center text-xs leading-7 text-muted">
+                            ▲
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-1 items-center justify-center gap-2">
+                      <span className="text-2xl leading-none">
+                        {row.food.split(" ")[0]}
+                      </span>
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm font-bold leading-tight text-text">
+                          {row.food.split(" ").slice(1).join(" ")}
+                        </span>
+                        <span className="text-[10px] text-muted mono leading-tight">
+                          last <span className="text-accent">{row.last}</span>
+                        </span>
+                      </div>
+                      <span className="mono text-[10px] text-muted">
+                        {row.hotkey}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1">
+                      <div
+                        className={`mono w-16 rounded-md px-1 py-0.5 text-center text-2xl font-bold leading-none text-ask transition ${highlightClass(
+                          activeKey === "prices",
+                        )}`}
+                      >
+                        {row.ask}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div
+                          className={`flex items-stretch gap-0.5 rounded-md transition ${highlightClass(
+                            activeKey === "scroll",
+                          )}`}
+                        >
+                          <div className="w-6 rounded border border-line bg-bg/40 text-center text-xs leading-7 text-muted">
+                            ▼
+                          </div>
+                          <div className="mono w-11 rounded border border-line bg-[#0a0c11] px-1 py-1 text-center text-xs text-text">
+                            7
+                          </div>
+                          <div className="w-6 rounded border border-line bg-bg/40 text-center text-xs leading-7 text-muted">
+                            ▲
+                          </div>
+                        </div>
+                        <div
+                          className={`transition ${highlightClass(
+                            activeKey === "ask",
+                          )}`}
+                        >
+                          <DesktopPillMock label="ASK" />
+                        </div>
+                        <div
+                          className={`transition ${highlightClass(
+                            activeKey === "buy",
+                          )}`}
+                        >
+                          <DesktopPillMock label="BUY" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
+
+            <div
+              className={`card p-4 transition ${highlightClass(
+                activeKey === "open-orders",
+              )}`}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <div className="section-title">Your open orders</div>
+                <div className="text-xs text-muted">Cancel all</div>
+              </div>
+              <div className="space-y-1">
+                {["BID Meat 1 @ $8", "ASK Grain 2 @ $7", "BID Milk 1 @ $4"].map(
+                  (item) => (
+                    <div
+                      key={item}
+                      className="rounded-md border border-line px-2 py-1.5 text-sm text-text"
+                    >
+                      {item}
+                    </div>
+                  ),
+                )}
+              </div>
+            </div>
           </div>
-        ))}
+
+          <div className="col-span-4 space-y-3">
+            <div
+              className={`card p-3 transition ${highlightClass(
+                activeKey === "trade-history",
+              )}`}
+            >
+              <div className="section-title mb-2">Trade history</div>
+              <div className="space-y-1 text-xs text-text">
+                {desktopPanels[1].items.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-md border border-line/40 px-2 py-1.5"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className={`card p-4 transition ${highlightClass(
+                activeKey === "event-log",
+              )}`}
+            >
+              <div className="section-title mb-3">Event log</div>
+              <div className="space-y-1.5 text-xs">
+                {desktopPanels[2].items.map((item, index) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <span className="mono w-10 shrink-0 text-muted">
+                      0{index}:04
+                    </span>
+                    <span
+                      className={
+                        index === 1
+                          ? "text-danger"
+                          : index === 0
+                            ? "text-bid"
+                            : "text-text"
+                      }
+                    >
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -373,6 +611,14 @@ function CombinedLayouts({
   ];
 
   const desktopLabels = [
+    { label: "Time", key: "time" as const },
+    { label: "Cash", key: "cash" as const },
+    { label: "Your food", key: "food" as const },
+    { label: "Players", key: "players" as const },
+    { label: "Best prices", key: "prices" as const },
+    { label: "Scroll wheel", key: "scroll" as const },
+    { label: "Buy", key: "buy" as const },
+    { label: "Ask", key: "ask" as const },
     { label: "Open orders", key: "open-orders" as const },
     { label: "Trade history", key: "trade-history" as const },
     { label: "Event log", key: "event-log" as const },
@@ -480,7 +726,13 @@ function CombinedLayouts({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 md:hidden">
+          <div className="mx-auto mt-6 w-full max-w-[1120px]">
+            <div className="relative">
+              <DesktopScreenShell activeKey={desktopActive} />
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
             {desktopLabels.map((item) => (
               <AnnotationLabel
                 key={item.label}
@@ -491,42 +743,6 @@ function CombinedLayouts({
                 }
               />
             ))}
-          </div>
-
-          <div className="relative mt-8 hidden h-[472px] md:block">
-            <div className="absolute left-1/2 top-6 w-[920px] -translate-x-1/2">
-              <div className="relative z-10">
-                <DesktopScreenShell activeKey={desktopActive} />
-              </div>
-            </div>
-
-            <AnnotationHotspot
-              text="Open orders"
-              labelClassName="left-[74px] top-[342px]"
-              onHoverChange={(hovered) =>
-                setDesktopActive(hovered ? "open-orders" : null)
-              }
-            />
-            <AnnotationHotspot
-              text="Trade history"
-              labelClassName="left-1/2 top-[342px] -translate-x-1/2"
-              onHoverChange={(hovered) =>
-                setDesktopActive(hovered ? "trade-history" : null)
-              }
-            />
-            <AnnotationHotspot
-              text="Event log"
-              labelClassName="right-[74px] top-[342px]"
-              onHoverChange={(hovered) =>
-                setDesktopActive(hovered ? "event-log" : null)
-              }
-            />
-          </div>
-
-          <div className="mx-auto mt-4 max-w-[340px] md:hidden">
-            <div className="relative">
-              <DesktopScreenShell activeKey={desktopActive} />
-            </div>
           </div>
         </div>
 
@@ -549,46 +765,6 @@ function CombinedLayouts({
         </div>
       </div>
     </div>
-  );
-}
-
-function FeaturedVideoSlot({
-  title,
-  caption,
-  placeholder,
-}: {
-  title: string;
-  caption: string;
-  placeholder: string;
-}) {
-  return (
-    <section className="card overflow-hidden p-0">
-      <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="relative flex min-h-[300px] items-center justify-center border-b border-line bg-[radial-gradient(circle_at_top,#1e2838_0%,#111722_55%,#0c1017_100%)] p-8 lg:min-h-[380px] lg:border-b-0 lg:border-r">
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(212,167,98,0.08),transparent_45%)]" />
-          <div className="relative flex flex-col items-center text-center">
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-accent/35 bg-accent/12 text-accent shadow-[0_0_40px_rgba(212,167,98,0.08)]">
-              <span className="ml-1 text-3xl">▶</span>
-            </div>
-            <div className="rounded-full border border-accent/25 bg-accent/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-accent">
-              Match Preview
-            </div>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-              {placeholder}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center p-6 sm:p-8">
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight text-text sm:text-3xl">
-              {title}
-            </h2>
-            <p className="text-sm leading-relaxed text-muted">{caption}</p>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -615,7 +791,7 @@ function highlightLobbyCopy(text: string) {
 }
 
 export default function TutorialPage() {
-  const { hero, featuredVideo, rules, lobby, layouts } = tutorialContent;
+  const { hero, rules, lobby, layouts } = tutorialContent;
 
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
@@ -642,12 +818,6 @@ export default function TutorialPage() {
             </p>
           </div>
         </header>
-
-        <FeaturedVideoSlot
-          title={featuredVideo.title}
-          caption={featuredVideo.caption}
-          placeholder={featuredVideo.placeholder}
-        />
 
         <section className="card border-accent/30 bg-[linear-gradient(180deg,rgba(212,167,98,0.12),rgba(15,19,27,0.96)_28%)] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.2)] sm:p-7">
           <div className="mb-4 flex items-center justify-between gap-4">

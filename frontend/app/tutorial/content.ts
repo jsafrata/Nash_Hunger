@@ -1,21 +1,8 @@
-export type TutorialMedia = {
-  type: "image";
-  label: string;
-  src: string;
-  alt: string;
-  placeholder: string;
-};
-
 export type TutorialPageContent = {
   hero: {
     title: string;
     subtitle: string;
     summary: string;
-  };
-  featuredVideo: {
-    title: string;
-    caption: string;
-    placeholder: string;
   };
   rules: {
     title: string;
@@ -52,13 +39,6 @@ export const tutorialContent: TutorialPageContent = {
     summary:
       "If you are new, start with the basics below and focus on one goal: keep the foods you need in stock long enough to outlast the table.",
   },
-  featuredVideo: {
-    title: "See a round before you jump in",
-    caption:
-      "A short walkthrough here can show how quickly the market moves, what the screens look like, and why survival decisions matter more than perfect prices.",
-    placeholder:
-      "A short gameplay video belongs here: joining a room, opening trades on mobile, and reacting before a food shortage turns fatal.",
-  },
   rules: {
     title: "Core Rules",
     badge: "Stay alive first",
@@ -70,11 +50,11 @@ export const tutorialContent: TutorialPageContent = {
         bullets: [
           "You produce 1 unique food and do not need to eat that one yourself.",
           "You must keep the other 3 foods available, because those are the foods your player needs to survive.",
-          "One cycle happens every 1 second.",
+          "One cycle happens every 10 seconds.",
           "Each cycle gives you +2 of the food you produce.",
           "That same cycle removes -1 of each of the 3 foods you need, so you lose 3 total food every cycle if you are still alive.",
           "If even 1 required food is missing when the survival check hits, you die immediately.",
-          "A round lasts 3 minutes unless only 1 player is still alive first.",
+          "A round lasts 10 minutes unless only 1 player is still alive first.",
           "If multiple players survive to the end, the survivor with the most cash wins.",
         ],
       },
@@ -115,11 +95,11 @@ export const tutorialContent: TutorialPageContent = {
       },
       {
         label: "Cash",
-        description: "Shows how much cash you can spend on bidding for food.",
+        description: "Shows your total cash. Some of it may already be locked in open bids.",
       },
       {
         label: "Your food",
-        description: "Shows what you currently hold, including the food you produce yourself. The food you produce will be highlighted.",
+        description: "Shows how much total food you have. Some of it may be locked in asks, so it does not count for survival.",
       },
       {
         label: "Players",

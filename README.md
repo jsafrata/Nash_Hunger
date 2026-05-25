@@ -123,7 +123,7 @@ Send `https://your-app.vercel.app` to your friends. Open it, create a game, shar
 All MVP "Must have" and "Should have" items from §26 of the PRD:
 
 - 4-player lobby, room codes, host start, reconnect via localStorage session
-- Server-authoritative tick loop: production (+2 own/sec), consumption (-1 each non-produced/sec), death-by-starvation, winner calculation with cash → food tie-break
+- Server-authoritative tick loop: every 10-second survival cycle produces +2 own food, consumes -1 of each non-produced food, checks starvation, and resolves winners by cash → food tie-break
 - Continuous limit order book per food type with bids/asks/cancels, partial fills, **maker-price** execution, **price-time priority**
 - Cash & inventory **reservations** that lock resources at order time and exclude reserved food from consumption (per §6.7)
 - Self-trade prevention by skipping own orders during matching

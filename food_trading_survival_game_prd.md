@@ -7,9 +7,9 @@
 Alternative names: **Scarcity Exchange**, **Rations Market**, **Four-Food Exchange**, **Survive the Book**.
 
 ### 1.2 Product Description
-This is a real-time 4-player market survival game. Each player produces one unique food type, starts with a private random food inventory and cash, and must continuously consume the three food types they do **not** produce. Players trade through a continuous limit order book: they can post bids, post asks, and cancel previously posted quotes. Orders can be partially filled, and trades execute using standard exchange-style maker-price logic.
+This is a real-time 4-player market survival game. Each player produces one unique food type, starts with a private food inventory and cash, and must continuously consume the three food types they do **not** produce. Players trade through a continuous limit order book: they can post bids, post asks, and cancel previously posted quotes. Orders can be partially filled, and trades execute using standard exchange-style maker-price logic.
 
-The game lasts **3 minutes**. At the end, among surviving players, the player with the most cash wins.
+The game lasts **10 minutes**. At the end, among surviving players, the player with the most cash wins.
 
 The frontend will be deployed on **Vercel**. The backend will be deployed on **Railway**.
 
@@ -23,7 +23,7 @@ Create a fast real-time trading game where survival depends on continuously mana
 ### 2.2 Design Principles
 
 1. **Continuous pressure**  
-   Players consume food every second, so survival pressure is constant rather than concentrated at the end of a round.
+   Players can trade at any time, while survival checks resolve on a repeating 10-second cycle.
 
 2. **Real market mechanics**  
    The game uses a simplified limit order book with bids, asks, partial fills, quote cancellation, price-time priority, and maker-price execution.
@@ -73,12 +73,12 @@ const FOOD_DISPLAY_NAMES = {
 The names are cosmetic and can be changed later.
 
 ### 3.3 Game Length
-- The match lasts exactly **3 minutes**.
-- Internally this is **180 seconds**.
+- The match lasts exactly **10 minutes**.
+- Internally this is **600 seconds**.
 - The game runs on a server-authoritative clock.
 
 ```ts
-const GAME_DURATION_SECONDS = 180;
+const GAME_DURATION_SECONDS = 600;
 ```
 
 ### 3.4 Starting Resources
@@ -91,36 +91,38 @@ At game start:
   - 100 units of food C
   - 100 units of food D
 - The deck is shuffled.
-- Each player receives exactly **100 random food units**.
+- Each player receives exactly **100 food units**.
+- Each player is guaranteed at least **20 units of each food type**.
+- The remaining **20 units** per player are dealt randomly from the shuffled deck.
 
-Important: the starting food distribution is random at the player level, but globally fixed. There must be exactly 100 total initial units of each food type.
+Important: the starting food distribution is globally fixed at 100 units of each food type, but it is not fully random at the player level because of the 20-per-food guarantee.
 
 ### 3.5 Production
 Each player produces one unique food type.
 
-Every second:
+Every 10-second survival cycle:
 
 - Each living player produces **2 units** of their own food type.
 - Dead players do not produce.
 
 Example:
 
-If Alice produces food A, then every second while Alice is alive:
+If Alice produces food A, then every cycle while Alice is alive:
 
 ```text
 Alice inventory A += 2
 ```
 
 ### 3.6 Consumption
-Every second:
+Every 10-second survival cycle:
 
 - Each living player consumes **1 unit of each food type they do not produce**.
-- Each living player therefore consumes **3 food units per second**.
+- Each living player therefore consumes **3 food units per cycle**.
 - A player does not consume their own produced food type.
 
 Example:
 
-If Alice produces food A, then every second she must consume:
+If Alice produces food A, then every cycle she must consume:
 
 ```text
 1 unit of B
@@ -151,14 +153,14 @@ Alice dies because she is missing C, even though she has many units of A.
 ### 3.8 Victory Condition
 The game ends when either:
 
-1. 180 seconds have elapsed, or
+1. 600 seconds have elapsed, or
 2. only one player remains alive, or
 3. all players are dead.
 
 At game end:
 
 - If exactly one player is alive, that player wins.
-- If multiple players are alive after 180 seconds, the surviving player with the most cash wins.
+- If multiple players are alive after 600 seconds, the surviving player with the most cash wins.
 - If no players are alive, there is no winner.
 - Leftover food has no cash value.
 
@@ -174,7 +176,7 @@ Leftover food is not converted into cash; it is only used as a tie-breaker.
 
 ## 4. Important Balance Note
 
-With the proposed numbers, the game is intentionally very scarce.
+With the implemented numbers, the game has meaningful pressure but is not mathematically forced into a global shortage.
 
 ### 4.1 Total Initial Food
 ```text
@@ -182,45 +184,43 @@ With the proposed numbers, the game is intentionally very scarce.
 ```
 
 ### 4.2 Total Production If All Players Survive
-Each second:
+Each cycle:
 
 ```text
-4 players × 2 units = 8 new food units per second
+4 players × 2 units = 8 new food units per cycle
 ```
 
-Over 180 seconds:
+Over 600 seconds = 60 cycles:
 
 ```text
-8 × 180 = 1440 produced food units
+8 × 60 = 480 produced food units
 ```
 
 Total food available if all players survive:
 
 ```text
-400 + 1440 = 1840 total food units
+400 + 480 = 880 total food units
 ```
 
 ### 4.3 Total Consumption If All Players Survive
-Each second:
+Each cycle:
 
 ```text
-4 players × 3 required food units = 12 consumed food units per second
+4 players × 3 required food units = 12 consumed food units per cycle
 ```
 
-Over 180 seconds:
+Over 600 seconds = 60 cycles:
 
 ```text
-12 × 180 = 2160 consumed food units
+12 × 60 = 720 consumed food units
 ```
 
-### 4.4 Total Shortage
+### 4.4 Total Surplus
 ```text
-2160 required - 1840 available = 320 food-unit shortage
+880 available - 720 required = 160 food-unit surplus
 ```
 
-Therefore, with these exact parameters, it is mathematically impossible for all four players to survive the full 3 minutes if no additional food source exists.
-
-This may be desirable if the goal is a harsh survival market where some players are expected to die. If the goal is for all players to be able to survive in theory, then one of the parameters should be changed later.
+Therefore, with these exact parameters, it is mathematically possible for all four players to survive the full match if they trade well enough.
 
 ### 4.5 Per-Food Balance
 For each food type:
@@ -231,37 +231,37 @@ Initial supply:
 100 units
 ```
 
-Production by that food’s producer across 180 seconds:
+Production by that food’s producer across 600 seconds:
 
 ```text
-2 units/second × 180 seconds = 360 units
+2 units/cycle × 60 cycles = 120 units
 ```
 
 Total supply per food type:
 
 ```text
-100 + 360 = 460 units
+100 + 120 = 220 units
 ```
 
 Demand for that food type comes from the 3 players who do not produce it:
 
 ```text
-3 players × 1 unit/second × 180 seconds = 540 units
+3 players × 1 unit/cycle × 60 cycles = 180 units
 ```
 
-Shortage per food type:
+Surplus per food type:
 
 ```text
-540 - 460 = 80 units
+220 - 180 = 40 units
 ```
 
 Across 4 food types:
 
 ```text
-80 × 4 = 320 units shortage
+40 × 4 = 160 units surplus
 ```
 
-This means each food type is structurally scarce. Players must compete for survival.
+This means the game still creates strong trading pressure, but survival is not mathematically impossible.
 
 ---
 
@@ -284,9 +284,9 @@ Lobby
 ↓
 Game Setup
 ↓
-Start 180-second match timer
+Start 600-second match timer
 ↓
-Every second:
+Every 10 seconds:
   - living players produce 2 units of own food
   - living players consume 1 unit of each non-produced food
   - players missing required food die
@@ -298,7 +298,7 @@ At any time during the match:
   - matching orders execute immediately
 
 Game ends when:
-  - 180 seconds pass, or
+  - 600 seconds pass, or
   - only one player remains alive, or
   - all players die
 ↓
@@ -308,7 +308,7 @@ Game over screen
 ```
 
 ### 5.2 Tick Order
-Every second, the backend should process game logic in this order:
+Every 10-second survival cycle, the backend should process game logic in this order:
 
 1. Check if game is already over.
 2. Apply production for all living players.
@@ -324,7 +324,7 @@ Recommended order:
 Production → Consumption → Death Resolution
 ```
 
-Reason: production happens during the second before the player eats. This gives producers their new output before the consumption check.
+Reason: production happens during the cycle before the player eats. This gives producers their new output before the consumption check.
 
 Important: a player does not consume their own produced food, so production does not directly save the producer from starvation. It gives them something to sell.
 
@@ -1281,7 +1281,7 @@ If a player dies while they have open orders:
 The game ends if:
 
 ```ts
-elapsedSeconds >= 180
+elapsedSeconds >= 600
 ```
 
 or:
@@ -1351,7 +1351,7 @@ On start:
 3. Deal 100 units to each player.
 4. Give each player 100 cash.
 5. Initialize order books.
-6. Start 180-second game timer.
+6. Start 600-second game timer.
 7. Begin production/consumption ticks.
 
 ---
@@ -2185,9 +2185,9 @@ backend/
 - Fixed shuffled deck with 100 of each food type
 - 100 starting food units per player
 - 100 starting cash per player
-- 3-minute match timer
-- Server-side production every second
-- Server-side consumption every second
+- 10-minute match timer
+- Server-side production every 10 seconds
+- Server-side consumption every 10 seconds
 - Death by starvation
 - Private inventory
 - Private cash
@@ -2259,7 +2259,7 @@ Test:
 - deck has exactly 100 of each food type,
 - each player receives exactly 100 food units,
 - each player gets unique produced food type,
-- production adds 2 own food per second,
+- production adds 2 own food per cycle,
 - consumption removes 1 of each non-produced food,
 - producer does not consume own food,
 - player dies if missing required food,
@@ -2287,7 +2287,7 @@ Test full scenarios:
 7. A player reserves too much food in asks and starves.
 8. A player dies and all their orders disappear.
 9. Game ends when only one survivor remains.
-10. Game ends at 180 seconds.
+10. Game ends at 600 seconds.
 11. Game ends with no survivors.
 
 ## 28.3 Manual Playtest Questions
@@ -2296,7 +2296,7 @@ During playtesting, observe:
 - Do players understand available vs reserved food?
 - Do players understand that reserved food cannot be eaten?
 - Does the order book feel intuitive?
-- Is 3 minutes too long or too short?
+- Is 10 minutes too long or too short?
 - Are players dying too quickly?
 - Is production too low compared to consumption?
 - Are prices meaningful?
@@ -2318,9 +2318,11 @@ export const GAME_CONFIG = {
   INITIAL_CASH: 100,
   INITIAL_UNITS_PER_FOOD_TYPE: 100,
   INITIAL_UNITS_PER_PLAYER: 100,
-  GAME_DURATION_SECONDS: 180,
+  MIN_INITIAL_UNITS_PER_FOOD_PER_PLAYER: 20,
+  GAME_DURATION_SECONDS: 600,
   PRODUCTION_PER_SECOND: 2,
   CONSUMPTION_PER_REQUIRED_FOOD_PER_SECOND: 1,
+  CONSUMPTION_INTERVAL_SECONDS: 10,
   MIN_PRICE: 0,
   MIN_ORDER_QUANTITY: 1,
   MAX_OPEN_ORDERS_PER_PLAYER: 50,
@@ -2336,15 +2338,15 @@ export const GAME_CONFIG = {
 
 This is the simple explanation shown inside the game.
 
-> There are 4 players and 4 food types. Each player produces one unique food type. You do not need to eat the food you produce, but every second you must eat 1 unit of each of the other 3 food types.
+> There are 4 players and 4 food types. Each player produces one unique food type. You do not need to eat the food you produce, but every 10 seconds you must eat 1 unit of each of the other 3 food types.
 >
-> At the start, each player gets 100 cash and 100 random food units from a shuffled deck containing exactly 100 units of each food type.
+> At the start, each player gets 100 cash and 100 food units from a shuffled deck containing exactly 100 units of each food type. Everyone is guaranteed at least 20 of each food, and the rest is random.
 >
-> Every second, each living player produces 2 units of their own food type and consumes 1 unit of each required food type. If you cannot eat one of your required foods, you die.
+> Every 10 seconds, each living player produces 2 units of their own food type and consumes 1 unit of each required food type. If you cannot eat one of your required foods, you die.
 >
 > You can trade at any time using the order book. Post bids to buy food, post asks to sell food, or cancel your open orders. Orders can be partially filled. If prices match, trades happen automatically. The trade price is the price of the order that was already resting on the book.
 >
-> The game lasts 3 minutes. If multiple players survive, the surviving player with the most cash wins. Leftover food has no cash value.
+> The game lasts 10 minutes. If multiple players survive, the surviving player with the most cash wins. Leftover food has no cash value.
 
 ---
 
@@ -2353,7 +2355,7 @@ This is the simple explanation shown inside the game.
 The MVP is successful if:
 
 - 4 players can complete a full real-time game online.
-- The server correctly handles production and consumption every second.
+- The server correctly handles production and consumption every 10 seconds.
 - The order book correctly supports bids, asks, cancellation, partial fills, and maker-price execution.
 - Players understand why they died when they die.
 - Private inventory and private cash remain hidden.
@@ -2361,4 +2363,3 @@ The MVP is successful if:
 - The game feels tense but not random-broken.
 - The winner is calculated correctly.
 - The app runs reliably with frontend on Vercel and backend on Railway.
-
