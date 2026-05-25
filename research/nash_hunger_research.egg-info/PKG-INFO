@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: nash-hunger-research
+Version: 0.1.0
+Summary: Pure-Python simulator + baseline agents for Nash Hunger research.
+Requires-Python: >=3.11
+Requires-Dist: numpy>=1.26
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"

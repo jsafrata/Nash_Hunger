@@ -14,19 +14,14 @@ The produced food has zero normalized value for its holder:
 
 `value_produces_normalized = 0`
 
-For the other three foods, use a softmin over their inventories. Let
+For each required food, use an absolute scarcity curve based only on that
+food's own inventory. Let
 
-- `R` = the required foods
-- `m = min(I_r for r in R)`
-- `tau = 6`
+- `s = 4`
 
 For each required food `r`:
 
-`w_r = exp(-(I_r - m) / tau)`
-
-`value_r_normalized = w_r / sum(w_k for k in R)`
-
-So scarcer required foods get higher normalized value, the three required-food values sum to `1`, and the produced food gets `0`.
+`value_r_normalized = 1 / (1 + I_r / s)`
 
 ## Market rescaling
 

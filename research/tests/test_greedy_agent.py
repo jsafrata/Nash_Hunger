@@ -45,6 +45,36 @@ def test_normalized_values_raise_required_scarcity():
     assert scarce["B"] > stocked["B"]
 
 
+def test_abundant_non_target_food_does_not_reduce_scarce_food_value():
+    agent = GreedyAgent()
+    lean = agent._normalized_food_values(
+        inventory={"A": 20.0, "B": 1.0, "C": 5.0, "D": 5.0},
+        produces="A",
+        required_foods=["B", "C", "D"],
+    )
+    absurd_wheat = agent._normalized_food_values(
+        inventory={"A": 20.0, "B": 1.0, "C": 1_000_000.0, "D": 5.0},
+        produces="A",
+        required_foods=["B", "C", "D"],
+    )
+    assert absurd_wheat["B"] == lean["B"]
+
+
+def test_value_drops_when_that_specific_food_is_abundant():
+    agent = GreedyAgent()
+    scarce = agent._normalized_food_values(
+        inventory={"A": 20.0, "B": 1.0, "C": 5.0, "D": 5.0},
+        produces="A",
+        required_foods=["B", "C", "D"],
+    )
+    abundant = agent._normalized_food_values(
+        inventory={"A": 20.0, "B": 20.0, "C": 5.0, "D": 5.0},
+        produces="A",
+        required_foods=["B", "C", "D"],
+    )
+    assert abundant["B"] < scarce["B"]
+
+
 def test_normalized_value_of_produced_food_is_zero():
     agent = GreedyAgent()
     values = agent._normalized_food_values(

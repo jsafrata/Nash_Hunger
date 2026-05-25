@@ -25,7 +25,7 @@ from env.config import DEFAULT_CONFIG, FOOD_TYPES
 from .base import Agent
 
 DEFAULT_MARKET_ANCHOR = 4.0
-SOFTMIN_TEMPERATURE = 6.0
+ABSOLUTE_VALUE_SCALE = 4.0
 MIN_PRODUCED_FOOD_RESERVE = 1
 
 
@@ -207,22 +207,9 @@ class GreedyAgent(Agent):
         if not required_foods:
             return values
 
-        required_units = np.array(
-            [max(0.0, float(inventory.get(food, 0.0))) for food in required_foods],
-            dtype=float,
-        )
-        shifted = required_units - required_units.min()
-        weights = np.exp(-shifted / SOFTMIN_TEMPERATURE)
-        weights_sum = float(weights.sum())
-
-        if weights_sum <= 0.0:
-            uniform = 1.0 / len(required_foods)
-            for food in required_foods:
-                values[food] = uniform
-            return values
-
-        for food, weight in zip(required_foods, weights):
-            values[food] = float(weight / weights_sum)
+        for food in required_foods:
+            units = max(1.0, float(inventory.get(food, 0.0)))
+            values[food] = 1.0 / (1.0 + units / ABSOLUTE_VALUE_SCALE)
         if produces:
             values[produces] = 0.0
         return values
