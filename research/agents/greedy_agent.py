@@ -1,85 +1,68 @@
-"""GreedyAgent — reactive panic-driven survivor.
+"""GreedyAgent — value-based survivor/trader.
 
-For each required food, the agent looks at its survival timer (available units
-== seconds until starvation under the canonical 1-unit-per-second consumption
-rate) and chooses one of three actions:
+This policy replaces the old tiered heuristic with a simple stateful model:
 
-    survival ≤ 2  →  PANIC.    Bid 5 units at price 10 (the max). Under
-                                 maker-price matching, a $10 bid sweeps any
-                                 ask priced ≤ $10 at the asker's price, so
-                                 this is the strongest possible immediate
-                                 buy in the discretized v1 action space.
+- derive a normalized per-food value from the current inventory vector
+- rescale those values into market dollars using public prices
+- estimate each opponent's cash and stock of the food they produce
+- buy the required food with the highest value-adjusted urgency
+- otherwise sell produced surplus at the highest estimated opponent willingness
 
-    survival ≤ 6  →  HURRY.    Bid 3 units at min(best_ask + 1, 10). Lifts
-                                 the best ask if one exists, but doesn't
-                                 sweep deep depth. Cheaper than panic.
-
-    survival ≤ 15 →  STOCKPILE. Post a *passive* bid for 2 units below the
-                                 spread (best_bid + 1, capped to 4). Sits
-                                 on the book and only fills if a seller
-                                 hits it — the goal is cheap accumulation,
-                                 not paying ask price.
-
-    survival > 15 →  no buy on this food.
-
-For its own produced food, when ≥ 5 surplus units are available, the agent
-posts an ask for 3-5 units at best_bid + 1 (a passive markup over the best
-bid).
-
-One action per tick. Multiple candidate actions are scored by urgency (lower
-survival = higher urgency). Most-urgent buy beats sell beats no-op.
-
-This agent is deterministic given a seed — the seed parameter is accepted for
-API compatibility but no randomness is used.
+The agent only uses its observation plus internal estimates; it never reads
+hidden env state.
 """
 from __future__ import annotations
 
+from collections import Counter
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from env.actions import (
-    ACTION_NOOP,
-    PRICE_BUCKETS,
-    QTY_BUCKETS,
-    encode_trade,
-)
+from env.actions import ACTION_NOOP, PRICE_BUCKETS, QTY_BUCKETS, encode_trade
+from env.config import DEFAULT_CONFIG, FOOD_TYPES
 
 from .base import Agent
 
-# Tier thresholds (in survival ticks)
-PANIC_THRESHOLD = 2
-HURRY_THRESHOLD = 6
-STOCKPILE_THRESHOLD = 15
+DEFAULT_MARKET_ANCHOR = 4.0
+SOFTMIN_TEMPERATURE = 6.0
+MIN_PRODUCED_FOOD_RESERVE = 1
 
-# Sell trigger (own surplus units)
-SELL_MIN_SURPLUS = 5
+
+@dataclass
+class OpponentEstimate:
+    cash: float
+    produced_inventory: float
+    produces: str
+    alive: bool = True
 
 
 def _bucket_qty(target: int) -> int:
-    """Largest QTY_BUCKETS index whose value is ≤ target. -1 if target<1."""
+    """Largest quantity bucket whose value is <= target."""
     if target < QTY_BUCKETS[0]:
         return -1
     chosen = 0
-    for i, q in enumerate(QTY_BUCKETS):
-        if q <= target:
+    for i, qty in enumerate(QTY_BUCKETS):
+        if qty <= target:
             chosen = i
         else:
             break
     return chosen
 
 
-def _bucket_price(target: int) -> int:
-    """Bucket index whose price is closest to target (clamped)."""
+def _bucket_price(target: float) -> int:
+    """Closest price bucket, clamped to valid action space."""
     if target <= PRICE_BUCKETS[0]:
         return 0
     if target >= PRICE_BUCKETS[-1]:
         return len(PRICE_BUCKETS) - 1
-    best_i, best_d = 0, abs(target - PRICE_BUCKETS[0])
-    for i, p in enumerate(PRICE_BUCKETS):
-        d = abs(target - p)
-        if d < best_d:
-            best_i, best_d = i, d
+    best_i = 0
+    best_d = abs(target - PRICE_BUCKETS[0])
+    for i, price in enumerate(PRICE_BUCKETS):
+        dist = abs(target - price)
+        if dist < best_d:
+            best_i = i
+            best_d = dist
     return best_i
 
 
@@ -101,95 +84,305 @@ class GreedyAgent(Agent):
     name = "greedy"
 
     def __init__(self, seed: Optional[int] = None) -> None:
-        # Deterministic: seed is unused but accepted for API symmetry with
-        # RandomAgent so the runner can pass a per-slot seed uniformly.
         del seed
+        self.reset()
 
-    # ------------------------------------------------------------------
-    # Candidate builders — each returns (qty_bucket, price_bucket) or None.
-    # ------------------------------------------------------------------
+    def reset(self) -> None:
+        self._estimates: Dict[int, OpponentEstimate] = {}
+        self._last_tick = 0
+        self._self_idx: Optional[int] = None
+        self._seen_trade_counts: Counter[Tuple[int, int, int, int, int, int]] = Counter()
 
-    def _buy_candidate(
-        self, obs: Dict[str, Any], food: str, avail_cash: int
-    ) -> Optional[Tuple[int, int]]:
-        survival = obs["available_inventory"][food]
+    def _ensure_initialized(self, obs: Dict[str, Any]) -> None:
+        player_idx = obs["player_idx"]
+        tick = obs["tick"]
+        if self._self_idx is not None and tick < self._last_tick:
+            self.reset()
+        if self._self_idx == player_idx and self._estimates:
+            return
 
-        if survival <= PANIC_THRESHOLD:
-            # PANIC: max-price sweep
-            price, qty = PRICE_BUCKETS[-1], 5
-        elif survival <= HURRY_THRESHOLD:
-            # HURRY: lift the best ask
-            ask = _best_ask(obs, food)
-            ref = ask if ask is not None else 6
-            price = min(ref + 1, PRICE_BUCKETS[-1])
-            qty = 3
-        elif survival <= STOCKPILE_THRESHOLD:
-            # STOCKPILE: passive bid below the spread
-            bid = _best_bid(obs, food)
-            ref = bid if bid is not None else (_last_trade(obs, food) or 3)
-            price = max(PRICE_BUCKETS[0], min(ref + 1, 4))
-            qty = 2
-        else:
+        self._self_idx = player_idx
+        expected_per_food = (
+            DEFAULT_CONFIG.initial_units_per_player / len(FOOD_TYPES)
+        )
+        self._estimates = {}
+        for p in obs["players"]:
+            idx = p["idx"]
+            if idx == player_idx or not p["produces"]:
+                continue
+            self._estimates[idx] = OpponentEstimate(
+                cash=float(DEFAULT_CONFIG.initial_cash),
+                produced_inventory=float(expected_per_food),
+                produces=p["produces"],
+                alive=p["status"] == "alive",
+            )
+        self._last_tick = tick
+
+    def _advance_estimates(self, obs: Dict[str, Any]) -> None:
+        tick = obs["tick"]
+        delta = max(0, tick - self._last_tick)
+        if delta > 0:
+            production = DEFAULT_CONFIG.production_per_second
+            players_by_idx = {p["idx"]: p for p in obs["players"]}
+            for idx, estimate in self._estimates.items():
+                public = players_by_idx.get(idx)
+                if public is None:
+                    continue
+                estimate.alive = public["status"] == "alive"
+                if estimate.alive:
+                    estimate.produced_inventory += production * delta
+        self._last_tick = tick
+
+    def _trade_signature(self, trade: Dict[str, Any]) -> Tuple[int, int, int, int, int, int]:
+        return (
+            trade["tick"],
+            trade["buyer_idx"],
+            trade["seller_idx"],
+            trade["price"],
+            trade["qty"],
+            FOOD_TYPES.index(trade["food"]),
+        )
+
+    def _ingest_recent_trades(self, obs: Dict[str, Any]) -> None:
+        current_counts = Counter(
+            self._trade_signature(trade) for trade in obs["recent_trades"]
+        )
+        players_by_idx = {p["idx"]: p for p in obs["players"]}
+
+        for trade in obs["recent_trades"]:
+            sig = self._trade_signature(trade)
+            if self._seen_trade_counts[sig] >= current_counts[sig]:
+                continue
+            self._seen_trade_counts[sig] += 1
+            price_total = float(trade["price"] * trade["qty"])
+            buyer_idx = trade["buyer_idx"]
+            seller_idx = trade["seller_idx"]
+            food = trade["food"]
+
+            buyer_est = self._estimates.get(buyer_idx)
+            seller_est = self._estimates.get(seller_idx)
+            if buyer_est is not None:
+                buyer_est.cash = max(0.0, buyer_est.cash - price_total)
+                buyer_public = players_by_idx.get(buyer_idx)
+                if buyer_public and buyer_public["produces"] == food:
+                    buyer_est.produced_inventory += trade["qty"]
+            if seller_est is not None:
+                seller_est.cash += price_total
+                seller_public = players_by_idx.get(seller_idx)
+                if seller_public and seller_public["produces"] == food:
+                    seller_est.produced_inventory = max(
+                        0.0, seller_est.produced_inventory - trade["qty"]
+                    )
+
+        self._seen_trade_counts = current_counts
+
+    def _estimate_unknown_required_units(self, tick: int) -> float:
+        start = DEFAULT_CONFIG.initial_units_per_player / len(FOOD_TYPES)
+        consume = DEFAULT_CONFIG.consumption_per_required_food_per_second
+        return max(0.0, start - tick * consume)
+
+    def _estimated_inventory_for_player(
+        self, obs: Dict[str, Any], player_idx: int
+    ) -> Dict[str, float]:
+        public = next(p for p in obs["players"] if p["idx"] == player_idx)
+        produces = public["produces"]
+        tick = obs["tick"]
+        unknown_required = self._estimate_unknown_required_units(tick)
+
+        inventory = {food: unknown_required for food in FOOD_TYPES}
+        if produces:
+            estimate = self._estimates.get(player_idx)
+            inventory[produces] = (
+                estimate.produced_inventory if estimate is not None else unknown_required
+            )
+        return inventory
+
+    def _normalized_food_values(
+        self,
+        inventory: Dict[str, float],
+        produces: Optional[str],
+        required_foods: List[str],
+    ) -> Dict[str, float]:
+        values = {food: 0.0 for food in FOOD_TYPES}
+        if not required_foods:
+            return values
+
+        required_units = np.array(
+            [max(0.0, float(inventory.get(food, 0.0))) for food in required_foods],
+            dtype=float,
+        )
+        shifted = required_units - required_units.min()
+        weights = np.exp(-shifted / SOFTMIN_TEMPERATURE)
+        weights_sum = float(weights.sum())
+
+        if weights_sum <= 0.0:
+            uniform = 1.0 / len(required_foods)
+            for food in required_foods:
+                values[food] = uniform
+            return values
+
+        for food, weight in zip(required_foods, weights):
+            values[food] = float(weight / weights_sum)
+        if produces:
+            values[produces] = 0.0
+        return values
+
+    def _market_anchor(
+        self,
+        obs: Dict[str, Any],
+        normalized: Dict[str, float],
+        side: str,
+    ) -> float:
+        ratios: List[float] = []
+
+        for food in FOOD_TYPES:
+            norm = normalized[food]
+            if norm <= 0.0:
+                continue
+
+            book = obs["order_books"][food]
+            levels = book["asks"] if side == "buy" else book["bids"]
+            if levels:
+                ratios.append(float(levels[0]["price"]) / norm)
+                continue
+
+            last_trade = book["last_trade_price"]
+            if last_trade is not None:
+                ratios.append(float(last_trade) / norm)
+
+        if ratios:
+            return float(sum(ratios) / len(ratios))
+        return DEFAULT_MARKET_ANCHOR
+
+    def _unnormalize_food_values(
+        self, normalized: Dict[str, float], market_anchor: float
+    ) -> Dict[str, float]:
+        return {food: normalized[food] * market_anchor for food in FOOD_TYPES}
+
+    def _opponent_value_for_food(
+        self, obs: Dict[str, Any], player_idx: int, food: str, market_anchor: float
+    ) -> float:
+        public = next(p for p in obs["players"] if p["idx"] == player_idx)
+        inventory = self._estimated_inventory_for_player(obs, player_idx)
+        required = [f for f in FOOD_TYPES if f != public["produces"]]
+        normalized = self._normalized_food_values(
+            inventory=inventory,
+            produces=public["produces"],
+            required_foods=required,
+        )
+        return normalized[food] * market_anchor
+
+    def _best_buy_candidate(
+        self,
+        obs: Dict[str, Any],
+        normalized: Dict[str, float],
+        legal_mask: np.ndarray,
+        dollar_values: Dict[str, float],
+    ) -> Optional[Tuple[float, int]]:
+        available_cash = obs["available_cash"]
+        candidates: List[Tuple[float, int]] = []
+
+        for food in obs["required_foods"]:
+            available_units = obs["available_inventory"][food]
+            per_unit_value = min(float(available_cash), dollar_values[food])
+            if per_unit_value < 1.0:
+                continue
+
+            best_ask = _best_ask(obs, food)
+            if best_ask is None or best_ask > per_unit_value:
+                continue
+
+            target_price = float(best_ask)
+
+            price_bucket = _bucket_price(target_price)
+            unit_price = PRICE_BUCKETS[price_bucket]
+            max_qty_by_cash = available_cash // unit_price
+            if max_qty_by_cash < 1:
+                continue
+
+            value_budget = max(float(unit_price), float(available_cash) * normalized[food])
+            max_qty_by_value = int(value_budget // unit_price)
+            best_ask_qty = obs["order_books"][food]["asks"][0]["qty"]
+            qty_target = min(max_qty_by_cash, max_qty_by_value, best_ask_qty)
+            qty_bucket = _bucket_qty(qty_target)
+            if qty_bucket < 0:
+                continue
+
+            action = encode_trade("bid", food, qty_bucket, price_bucket)
+            if not legal_mask[action]:
+                continue
+
+            underpricing = dollar_values[food] - float(unit_price)
+            scarcity = 1.0 / max(1.0, float(available_units))
+            candidates.append(((underpricing * 1000.0) + scarcity, action))
+
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (-item[0], item[1]))
+        return candidates[0]
+
+    def _best_sell_candidate(
+        self,
+        obs: Dict[str, Any],
+        legal_mask: np.ndarray,
+        sell_anchor: float,
+    ) -> Optional[Tuple[float, int]]:
+        own_food = obs["produces"]
+        if not own_food:
             return None
 
-        max_qty_by_cash = avail_cash // max(1, price)
-        eff_qty = min(qty, max_qty_by_cash)
-        if eff_qty < 1:
+        own_available = obs["available_inventory"][own_food]
+        qty_target = own_available - MIN_PRODUCED_FOOD_RESERVE
+        qty_bucket = _bucket_qty(qty_target)
+        if qty_bucket < 0:
             return None
-        qb = _bucket_qty(eff_qty)
-        if qb < 0:
-            return None
-        return qb, _bucket_price(price)
 
-    def _sell_candidate(
-        self, obs: Dict[str, Any]
-    ) -> Optional[Tuple[int, int]]:
-        own = obs["produces"]
-        if not own:
-            return None
-        avail = obs["available_inventory"][own]
-        if avail < SELL_MIN_SURPLUS:
-            return None
-        bid = _best_bid(obs, own)
-        last = _last_trade(obs, own)
-        ref = bid if bid is not None else (last if last is not None else 4)
-        price = max(3, ref + 1)
-        qty = min(5, max(2, avail // 3))
-        qb = _bucket_qty(qty)
-        if qb < 0:
-            return None
-        return qb, _bucket_price(price)
+        willingness = 0.0
+        for p in obs["players"]:
+            idx = p["idx"]
+            if idx == obs["player_idx"] or p["status"] != "alive":
+                continue
+            estimate = self._estimates.get(idx)
+            if estimate is None:
+                continue
+            opponent_value = self._opponent_value_for_food(
+                obs=obs,
+                player_idx=idx,
+                food=own_food,
+                market_anchor=sell_anchor,
+            )
+            willingness = max(willingness, min(estimate.cash, opponent_value))
 
-    # ------------------------------------------------------------------
+        floor_price = max(1.0, willingness)
+        price_bucket = _bucket_price(floor_price)
+        action = encode_trade("ask", own_food, qty_bucket, price_bucket)
+        if not legal_mask[action]:
+            return None
+        return (PRICE_BUCKETS[price_bucket] * QTY_BUCKETS[qty_bucket], action)
 
     def act(self, obs: Dict[str, Any], legal_mask: np.ndarray) -> int:
         if obs["status"] != "alive":
             return ACTION_NOOP
 
-        candidates: List[Tuple[float, int]] = []
-        avail_cash = obs["available_cash"]
+        self._ensure_initialized(obs)
+        self._advance_estimates(obs)
+        self._ingest_recent_trades(obs)
 
-        # Buy candidates — urgency = 100 - survival (higher = more urgent)
-        for food in obs["required_foods"]:
-            built = self._buy_candidate(obs, food, avail_cash)
-            if built is None:
-                continue
-            qb, pb = built
-            a = encode_trade("bid", food, qb, pb)
-            if not legal_mask[a]:
-                continue
-            urgency = 100.0 - float(obs["available_inventory"][food])
-            candidates.append((urgency, a))
+        normalized = self._normalized_food_values(
+            inventory={f: float(obs["available_inventory"][f]) for f in FOOD_TYPES},
+            produces=obs["produces"],
+            required_foods=obs["required_foods"],
+        )
+        buy_anchor = self._market_anchor(obs, normalized, "buy")
+        sell_anchor = self._market_anchor(obs, normalized, "sell")
+        dollar_values = self._unnormalize_food_values(normalized, buy_anchor)
 
-        # Sell candidate — urgency = 10 (always loses to a real buy candidate)
-        sell = self._sell_candidate(obs)
-        if sell is not None:
-            qb, pb = sell
-            a = encode_trade("ask", obs["produces"], qb, pb)
-            if legal_mask[a]:
-                candidates.append((10.0, a))
+        buy_candidate = self._best_buy_candidate(obs, normalized, legal_mask, dollar_values)
+        if buy_candidate is not None and buy_candidate[0] > 0:
+            return buy_candidate[1]
 
-        if not candidates:
-            return ACTION_NOOP
-        candidates.sort(key=lambda x: -x[0])
-        return candidates[0][1]
+        sell_candidate = self._best_sell_candidate(obs, legal_mask, sell_anchor)
+        if sell_candidate is not None and sell_candidate[0] > 0:
+            return sell_candidate[1]
+
+        return ACTION_NOOP
