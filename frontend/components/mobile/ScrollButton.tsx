@@ -38,7 +38,7 @@ export function ScrollButton({
   };
   const moveDrag = (y: number) => {
     if (startYRef.current === null) return;
-    const dy = startYRef.current - y; // up = positive
+    const dy = y - startYRef.current; // down = positive (down increases price)
     const steps = Math.round(dy / PIXELS_PER_STEP);
     const next = Math.max(0, baseRef.current + steps);
     if (next !== price) onPriceChange(next);

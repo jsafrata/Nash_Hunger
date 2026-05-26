@@ -279,9 +279,6 @@ function PlayersStrip({
               >
                 {isSelf ? selfName : p.name}
               </div>
-              <div className="text-[9px] text-muted leading-none">
-                {p.status === "alive" ? "● alive" : "† dead"}
-              </div>
             </div>
           );
         })}

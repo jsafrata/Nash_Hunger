@@ -17,17 +17,17 @@ export const FOOD_EMOJIS: Record<FoodType, string> = {
 };
 
 export const FOOD_HOTKEYS: Record<FoodType, string> = {
-  A: "g",
-  B: "v",
-  C: "m",
-  D: "k",
+  A: "u",
+  B: "i",
+  C: "o",
+  D: "p",
 };
 
 export const HOTKEY_TO_FOOD: Record<string, FoodType> = {
-  g: "A",
-  v: "B",
-  m: "C",
-  k: "D",
+  u: "A",
+  i: "B",
+  o: "C",
+  p: "D",
 };
 
 export const FOOD_COLORS: Record<FoodType, string> = {

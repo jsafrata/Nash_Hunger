@@ -41,7 +41,6 @@ function OpponentBox({ player, deltas }: OpponentBoxProps) {
         {player.isBot && (
           <span className="text-[9px] text-muted">BOT</span>
         )}
-        {dead && <span className="text-[9px] text-danger">DEAD</span>}
       </div>
       <div className="flex justify-between gap-2">
         {FOOD_TYPES.map((f) => {
