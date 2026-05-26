@@ -24,6 +24,17 @@ def _aggregate_levels(orders) -> List[Dict[str, int]]:
     return [{"price": p, "qty": q} for p, q in by_price.items()]
 
 
+def _public_orders(orders) -> List[Dict[str, int]]:
+    return [
+        {
+            "player_idx": o.player_idx,
+            "price": o.price_per_unit,
+            "qty": o.remaining_quantity,
+        }
+        for o in orders[:PUBLIC_BOOK_DEPTH]
+    ]
+
+
 def _public_book(state: GameState, food: str) -> Dict[str, Any]:
     book = state.order_books[food]
     bids = sorted(_aggregate_levels(book.bids), key=lambda l: -l["price"])[:PUBLIC_BOOK_DEPTH]
@@ -34,6 +45,8 @@ def _public_book(state: GameState, food: str) -> Dict[str, Any]:
     return {
         "bids": bids,
         "asks": asks,
+        "bid_orders": _public_orders(book.bids),
+        "ask_orders": _public_orders(book.asks),
         "last_trade_price": last_trade.price_per_unit if last_trade else None,
         "last_trade_qty": last_trade.quantity if last_trade else None,
     }
